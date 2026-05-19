@@ -1,0 +1,244 @@
+import 'dart:convert';
+import 'dart:async';
+import 'package:http/http.dart' as http;
+import '../config/app_config.dart';
+import '../models/order_model.dart';
+import '../models/audit_log_model.dart';
+
+class OrdersService {
+  final String _baseUrl = AppConfig.baseUrl;
+  final String token;
+
+  OrdersService({required this.token});
+
+  Map<String, String> get _headers => {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+
+  // ─── List / Kanban feed ────────────────────────────────────────────────────
+
+  Future<({List<OrderListItem> items, int total, int page})> getOrders({
+    List<OrderStatus>? statuses,
+    String? branchId,
+    String? customerId,
+    String? salesManagerId,
+    DateTime? from,
+    DateTime? to,
+    String? search,
+    PaymentStatus? paymentStatus,
+    PaymentType? paymentType,
+    int page = 1,
+    int limit = AppConfig.defaultPageSize,
+  }) async {
+    final query = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+      if (statuses != null && statuses.isNotEmpty)
+        'statuses': statuses.map((s) => s.name).join(','),
+      if (branchId != null) 'branchId': branchId,
+      if (customerId != null) 'customerId': customerId,
+      if (salesManagerId != null) 'salesManagerId': salesManagerId,
+      if (from != null) 'from': from.toIso8601String(),
+      if (to != null) 'to': to.toIso8601String(),
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (paymentStatus != null) 'paymentStatus': paymentStatus.name,
+      if (paymentType != null) 'paymentType': paymentType.name,
+    };
+
+    final uri = Uri.parse('${AppConfig.baseUrl}/orders').replace(queryParameters: query);
+    print('[OrdersService] Fetching orders from: ${uri.toString()}');
+    late http.Response response;
+    try {
+      response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (_) {
+      throw ApiException('Request timed out', 504);
+    }
+
+    // Always print the raw response first to aid debugging (even on non-2xx)
+    print('[OrdersService] response status: ${response.statusCode}');
+    print('[OrdersService] raw response: ${response.body}');
+    _checkStatus(response);
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(response.body);
+    } catch (e) {
+      print('[OrdersService] Failed to decode JSON: $e');
+      rethrow;
+    }
+
+    List<dynamic> rawItems = [];
+    int? total;
+    int returnedPage = page;
+
+    if (decoded is List) {
+      rawItems = decoded;
+      total = rawItems.length;
+    } else if (decoded is Map<String, dynamic>) {
+      rawItems = (decoded['data'] ?? decoded['items'] ?? []) as List<dynamic>;
+      total = (decoded['total'] as int?) ?? rawItems.length;
+      returnedPage = (decoded['page'] as int?) ?? page;
+    } else {
+      throw ApiException('Unexpected response shape', response.statusCode);
+    }
+
+    final items = <OrderListItem>[];
+    for (final j in rawItems) {
+      try {
+        items.add(OrderListItem.fromJson(j as Map<String, dynamic>));
+      } catch (e, st) {
+        print('[OrdersService] Failed to parse item: $j');
+        print(e);
+        print(st);
+      }
+    }
+
+    return (
+      items: items,
+      total: total ?? items.length,
+      page: returnedPage,
+    );
+  }
+
+  // ─── Single order ──────────────────────────────────────────────────────────
+
+  Future<OrderDetail> getOrder(String id) async {
+    final uri = Uri.parse('$_baseUrl/orders/$id');
+    print('[OrdersService] Fetching order detail from: ${uri.toString()}');
+    late http.Response response;
+    try {
+      response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (_) {
+      throw ApiException('Request timed out', 504);
+    }
+    print('[OrdersService] getOrder status: ${response.statusCode}');
+    print('[OrdersService] getOrder body: ${response.body}');
+    _checkStatus(response);
+    return _parseOrderDetailResponse(response.body, response.statusCode);
+  }
+
+  OrderDetail _parseOrderDetailResponse(String body, int statusCode) {
+    final decoded = jsonDecode(body);
+    if (decoded is Map<String, dynamic>) {
+      var payload = decoded['data'] as Map<String, dynamic>? ?? decoded;
+      if (payload['order'] is Map<String, dynamic>) {
+        final orderMap = Map<String, dynamic>.from(payload['order'] as Map<String, dynamic>);
+        if (payload.containsKey('items') && !orderMap.containsKey('items')) {
+          orderMap['items'] = payload['items'];
+        }
+        if (payload.containsKey('orderItems') && !orderMap.containsKey('orderItems')) {
+          orderMap['orderItems'] = payload['orderItems'];
+        }
+        if (payload.containsKey('order_items') && !orderMap.containsKey('order_items')) {
+          orderMap['order_items'] = payload['order_items'];
+        }
+        payload = orderMap;
+      }
+      return OrderDetail.fromJson(payload);
+    }
+    throw ApiException('Unexpected order detail response shape', statusCode);
+  }
+
+  // ─── Audit logs ────────────────────────────────────────────────────────────
+
+  Future<List<AuditLog>> getOrderLogs(String id) async {
+    final uri = Uri.parse('$_baseUrl/orders/$id/logs');
+    print('[OrdersService] Fetching order logs from: ${uri.toString()}');
+    late http.Response response;
+    try {
+      response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (_) {
+      throw ApiException('Request timed out', 504);
+    }
+    print('[OrdersService] getOrderLogs status: ${response.statusCode}');
+    print('[OrdersService] getOrderLogs body: ${response.body}');
+    _checkStatus(response);
+    final decoded = jsonDecode(response.body);
+    if (decoded is List<dynamic>) {
+      return decoded.map((j) => AuditLog.fromJson(j as Map<String, dynamic>)).toList();
+    }
+    if (decoded is Map<String, dynamic>) {
+      final raw = decoded['data'] as List<dynamic>? ?? decoded['logs'] as List<dynamic>?;
+      if (raw != null) {
+        return raw.map((j) => AuditLog.fromJson(j as Map<String, dynamic>)).toList();
+      }
+    }
+    throw ApiException('Unexpected order logs response shape', response.statusCode);
+  }
+
+  // ─── Transitions ───────────────────────────────────────────────────────────
+
+  Future<OrderDetail> transition({
+    required String orderId,
+    required OrderStatus nextStatus,
+    String? pickerId,
+    String? trolleyId,
+    List<Map<String, dynamic>>? backorderedItems,
+    List<String>? arrivedItemIds,
+    String? notes,
+  }) async {
+    final body = <String, dynamic>{
+      'nextStatus': nextStatus.name,
+      if (pickerId != null) 'pickerId': pickerId,
+      if (trolleyId != null) 'trolleyId': trolleyId,
+      if (backorderedItems != null) 'backorderedItems': backorderedItems,
+      if (arrivedItemIds != null) 'arrivedItemIds': arrivedItemIds,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    };
+
+    late http.Response response;
+    try {
+      response = await http
+          .post(Uri.parse('$_baseUrl/orders/$orderId/transitions'), headers: _headers, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (_) {
+      throw ApiException('Request timed out', 504);
+    }
+    _checkStatus(response);
+    return _parseOrderDetailResponse(response.body, response.statusCode);
+  }
+
+  // ─── Mark paid / unpaid ────────────────────────────────────────────────────
+
+  Future<OrderDetail> markPaid(String orderId) async {
+    late http.Response response;
+    try {
+      response = await http.post(Uri.parse('$_baseUrl/orders/$orderId/mark-paid'), headers: _headers).timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (_) {
+      throw ApiException('Request timed out', 504);
+    }
+    _checkStatus(response);
+    return _parseOrderDetailResponse(response.body, response.statusCode);
+  }
+
+  Future<OrderDetail> unmarkPaid(String orderId) async {
+    late http.Response response;
+    try {
+      response = await http.post(Uri.parse('$_baseUrl/orders/$orderId/unmark-paid'), headers: _headers).timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (_) {
+      throw ApiException('Request timed out', 504);
+    }
+    _checkStatus(response);
+    return _parseOrderDetailResponse(response.body, response.statusCode);
+  }
+
+  // ─── Helper ───────────────────────────────────────────────────────────────
+
+  void _checkStatus(http.Response response) {
+    if (response.statusCode >= 400) {
+      final body = jsonDecode(response.body) as Map<String, dynamic>?;
+      final message = body?['message'] as String? ?? 'Request failed (${response.statusCode})';
+      throw ApiException(message, response.statusCode);
+    }
+  }
+}
+
+class ApiException implements Exception {
+  final String message;
+  final int statusCode;
+
+  const ApiException(this.message, this.statusCode);
+
+  @override
+  String toString() => message;
+}
