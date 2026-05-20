@@ -42,7 +42,20 @@ class OrdersProvider extends ChangeNotifier {
       // Full refresh hint
       refreshAll();
     } else if (type == 'order.changed') {
-      final orderId = payload['id'] as String?;
+      String? parseString(dynamic value) {
+        if (value == null) return null;
+        if (value is String) {
+          final trimmed = value.trim();
+          return trimmed.isEmpty ? null : trimmed;
+        }
+        if (value is num) return value.toString();
+        if (value is List && value.isNotEmpty) {
+          return value.first.toString();
+        }
+        return null;
+      }
+
+      final orderId = parseString(payload['id']);
       if (orderId != null) {
         _refreshSingleOrder(orderId);
       }
@@ -56,7 +69,9 @@ class OrdersProvider extends ChangeNotifier {
 
     try {
       final result = await _ordersService.getOrders(limit: 100);
-      print('[OrdersProvider] loaded ${result.items.length} items from service');
+      print(
+        '[OrdersProvider] loaded ${result.items.length} items from service',
+      );
       _distributeToColumns(result.items);
       _error = null;
     } catch (e) {
@@ -195,6 +210,54 @@ class OrdersProvider extends ChangeNotifier {
     try {
       final updated = await _ordersService.unmarkPaid(orderId);
       _updateInColumns(updated);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateDetails({
+    required String orderId,
+    String? trolleyId,
+    DateTime? endDate,
+  }) async {
+    try {
+      final updated = await _ordersService.updateDetails(
+        orderId: orderId,
+        trolleyId: trolleyId,
+        endDate: endDate,
+      );
+      _updateInColumns(updated);
+      await _loadAuditLogs(orderId);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateOrderItem({
+    required String orderId,
+    required String itemId,
+    double? quantity,
+    String? status,
+    double? backorderedQuantity,
+  }) async {
+    try {
+      final updated = await _ordersService.updateItem(
+        orderId: orderId,
+        itemId: itemId,
+        quantity: quantity,
+        status: status,
+        backorderedQuantity: backorderedQuantity,
+      );
+      _updateInColumns(updated);
+      await _loadAuditLogs(orderId);
       notifyListeners();
       return true;
     } catch (e) {

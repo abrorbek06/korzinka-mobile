@@ -11,19 +11,20 @@ class ProductsService {
   ProductsService({required this.token});
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
 
   Future<List<Product>> getProducts({int page = 1, int limit = 100}) async {
-    final uri = Uri.parse('$_baseUrl/products').replace(queryParameters: {
-      'page': page.toString(),
-      'limit': limit.toString(),
-    });
+    final uri = Uri.parse('$_baseUrl/products').replace(
+      queryParameters: {'page': page.toString(), 'limit': limit.toString()},
+    );
 
     late http.Response response;
     try {
-      response = await http.get(uri, headers: _headers).timeout(const Duration(seconds: 10));
+      response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 10));
     } on TimeoutException catch (_) {
       throw ApiException('Request timed out', 504);
     }
@@ -38,7 +39,10 @@ class ProductsService {
     } else if (decoded is Map<String, dynamic>) {
       rawItems = (decoded['data'] ?? decoded['items'] ?? []) as List<dynamic>;
     } else {
-      throw ApiException('Unexpected products response shape', response.statusCode);
+      throw ApiException(
+        'Unexpected products response shape',
+        response.statusCode,
+      );
     }
 
     return rawItems
@@ -50,8 +54,22 @@ class ProductsService {
   void _checkStatus(http.Response response) {
     if (response.statusCode >= 400) {
       final decoded = jsonDecode(response.body);
+      String? parseString(dynamic value) {
+        if (value == null) return null;
+        if (value is String) {
+          final trimmed = value.trim();
+          return trimmed.isEmpty ? null : trimmed;
+        }
+        if (value is num) return value.toString();
+        if (value is List && value.isNotEmpty) {
+          return value.first.toString();
+        }
+        return null;
+      }
+
       final message = decoded is Map<String, dynamic>
-          ? decoded['message'] as String? ?? 'Request failed (${response.statusCode})'
+          ? parseString(decoded['message']) ??
+                'Request failed (${response.statusCode})'
           : 'Request failed (${response.statusCode})';
       throw ApiException(message, response.statusCode);
     }

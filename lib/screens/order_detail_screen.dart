@@ -1,13 +1,42 @@
 import 'package:flutter/material.dart';
-import '../models/user_model.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../models/user_model.dart';
 import '../models/order_model.dart';
 import '../providers/orders_provider.dart';
 import '../providers/auth_provider.dart';
-import '../theme/app_theme.dart';
 import '../widgets/audit_log_tile.dart';
 import '../widgets/transition_sheet.dart';
+
+class TrolleyOption {
+  final String id;
+  final String code;
+  final String name;
+
+  const TrolleyOption({
+    required this.id,
+    required this.code,
+    required this.name,
+  });
+}
+
+const List<TrolleyOption> _trolleys = [
+  TrolleyOption(
+    id: '11111111-1111-1111-1111-111111111111',
+    code: 'TR-001',
+    name: 'Arava 1',
+  ),
+  TrolleyOption(
+    id: '22222222-2222-2222-2222-222222222222',
+    code: 'TR-002',
+    name: 'Arava 2',
+  ),
+  TrolleyOption(
+    id: '33333333-3333-3333-3333-333333333333',
+    code: 'TR-003',
+    name: 'Arava 3',
+  ),
+];
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -25,7 +54,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OrdersProvider>().loadOrderDetail(widget.orderId);
     });
@@ -37,6 +66,42 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
     super.dispose();
   }
 
+  void _showTrolleyAssignment(BuildContext context, OrderDetail order) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => _TrolleyDialog(
+        order: order,
+        onAssign: (trolleyId) async {
+          final success = await context.read<OrdersProvider>().updateDetails(
+            orderId: order.id,
+            trolleyId: trolleyId,
+          );
+          if (success) {
+            if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Arava muvaffaqiyatli o'zgartirildi"),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } else {
+            if (context.mounted) {
+              final error = context.read<OrdersProvider>().error;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Xatolik yuz berdi: $error"),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ordersProvider = context.watch<OrdersProvider>();
@@ -44,280 +109,705 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
     final order = ordersProvider.selectedOrder;
     final user = authProvider.user!;
 
-    return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: Text(order?.code ?? 'Order Detail'),
-        actions: [
-          if (order != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: _StatusBadge(status: order.status),
-            ),
-          IconButton(
-            icon: const Icon(Icons.refresh_outlined),
-            tooltip: 'Refresh',
-            onPressed: () =>
-                context.read<OrdersProvider>().loadOrderDetail(widget.orderId),
+    if (ordersProvider.error != null && order == null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Error: ${ordersProvider.error}'),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => context.read<OrdersProvider>().loadOrderDetail(
+                  widget.orderId,
+                ),
+                child: const Text('Retry'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Orqaga'),
+              ),
+            ],
           ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: AppTheme.onSurfaceMuted,
-          indicatorColor: AppTheme.primary,
-          indicatorSize: TabBarIndicatorSize.label,
-          tabs: const [
-            Tab(text: 'Items'),
-            Tab(text: 'Details'),
-            Tab(text: 'Audit'),
-          ],
+        ),
+      );
+    }
+
+    if (order == null) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+          ),
+        ),
+      );
+    }
+
+    final trolleyText = order.trolleyId != null
+        ? _trolleys
+              .firstWhere(
+                (t) => t.id == order.trolleyId,
+                orElse: () => TrolleyOption(
+                  id: order.trolleyId!,
+                  code: order.trolleyId!,
+                  name: order.trolleyId!,
+                ),
+              )
+              .code
+        : '—';
+
+    final canUpdateTrolley =
+        user.role == UserRole.ADMIN ||
+        user.role == UserRole.STORE_MANAGER ||
+        user.role == UserRole.SALES_MANAGER ||
+        (user.role == UserRole.PICKER &&
+            order.status == OrderStatus.IN_COLLECTION);
+
+    final baseHas = availableTransitions(order.status, user.role.name).isNotEmpty;
+    final pickerRoleAllowed = user.role == UserRole.PICKER && kTransitionRules.any(
+      (t) => t.from == order.status && t.roles.contains('PICKER'),
+    );
+    final hasTransitionAccess = baseHas || pickerRoleAllowed;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  order.code ?? 'Order Detail',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                _StatusBadge(status: order.status),
+                // IconButton(
+                //   icon: const Icon(Icons.more_vert, color: Colors.black87),
+                //   onPressed: () {},
+                // ),
+              ],
+            ),
+          ),
         ),
       ),
-      floatingActionButton:
-          (order != null &&
-              (user.role.canManageTransitions ||
-                  user.role == UserRole.ACCOUNTANT))
-          ? FloatingActionButton.extended(
-              onPressed: () =>
-                  TransitionSheet.show(context, order: order, user: user),
-              backgroundColor: AppTheme.primary,
-              foregroundColor: AppTheme.background,
-              icon: const Icon(Icons.arrow_forward),
-              label: const Text(
-                'Actions',
-                style: TextStyle(fontWeight: FontWeight.w700),
+      bottomNavigationBar: hasTransitionAccess
+          ? Container(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                bottom: MediaQuery.of(context).padding.bottom + 12,
+                top: 12,
               ),
-            )
-          : null,
-      body: (ordersProvider.error != null && order == null)
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Error: ${ordersProvider.error}'),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () => context
-                        .read<OrdersProvider>()
-                        .loadOrderDetail(widget.orderId),
-                    child: const Text('Retry'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Back'),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 10,
+                    offset: Offset(0, -4),
                   ),
                 ],
               ),
+              child: ElevatedButton(
+                onPressed: () =>
+                    TransitionSheet.show(context, order: order, user: user),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Statusni o\'zgartirish',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Icon(Icons.keyboard_arrow_up, size: 20),
+                  ],
+                ),
+              ),
             )
-          : order == null
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
+          : null,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Summary block
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+            child: Column(
+              children: [
+                _SummaryRow(
+                  'Mijoz',
+                  order.customer?.name ?? '—',
+                  isBoldValue: true,
+                ),
+                const SizedBox(height: 12),
+                _SummaryRow(
+                  'Sana',
+                  DateFormat('dd.MM.yyyy HH:mm').format(order.createdAt),
+                ),
+                const SizedBox(height: 12),
+                _SummaryRow(
+                  'Arava',
+                  trolleyText,
+                  trailing: canUpdateTrolley
+                      ? GestureDetector(
+                          onTap: () => _showTrolleyAssignment(context, order),
+                          child: const Text(
+                            "O'zgartirish",
+                            style: TextStyle(
+                              color: Color(0xFF6366F1),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: Color(0xFFE5E7EB)),
+          // Custom TabBar
+          TabBar(
+            controller: _tabController,
+            labelColor: const Color(0xFF6366F1),
+            unselectedLabelColor: const Color(0xFF9CA3AF),
+            indicatorColor: const Color(0xFF6366F1),
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 15,
+            ),
+            tabs: [
+              Tab(text: 'Mahsulotlar (${order.items.length})'),
+              Tab(text: 'Audit (${ordersProvider.auditLogs.length})'),
+            ],
+          ),
+          const Divider(height: 1, color: Color(0xFFE5E7EB)),
+          // TabBarView
+          Expanded(
+            child: TabBarView(
               controller: _tabController,
               children: [
-                _ItemsTab(order: order),
-                _DetailsTab(order: order, user: user),
+                _ItemsTab(order: order, user: user),
                 _AuditTab(orderId: widget.orderId),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ─── Details Tab ─────────────────────────────────────────────────────────────
+// ─── Trolley Assignment Dialog ───────────────────────────────────────────────────
 
-class _DetailsTab extends StatelessWidget {
+class _TrolleyDialog extends StatelessWidget {
   final OrderDetail order;
-  final AuthenticatedUser user;
-  const _DetailsTab({required this.order, required this.user});
+  final ValueChanged<String?> onAssign;
+
+  const _TrolleyDialog({required this.order, required this.onAssign});
 
   @override
   Widget build(BuildContext context) {
-    final fmt = DateFormat('dd MMM yyyy, HH:mm');
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      children: [
-        _SectionCard(
-          title: 'Order Info',
-          icon: Icons.receipt_outlined,
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _InfoRow('Code', order.code ?? '—'),
-            _InfoRow('Status', order.status.displayName),
-            _InfoRow('Payment', order.paymentStatus.displayName),
-            _InfoRow('Payment Type', order.paymentType.displayName),
-            _InfoRow('Created', fmt.format(order.createdAt)),
-            if (order.endDate != null)
-              _InfoRow('End Date', fmt.format(order.endDate!)),
-            if (order.completedAt != null)
-              _InfoRow('Completed', fmt.format(order.completedAt!)),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (order.customer != null)
-          _SectionCard(
-            title: 'Customer',
-            icon: Icons.person_outline,
-            children: [
-              _InfoRow('Name', order.customer!.name),
-              if (order.customer!.phone != null)
-                _InfoRow('Phone', order.customer!.phone!),
-              if (order.customer!.email != null)
-                _InfoRow('Email', order.customer!.email!),
-            ],
-          ),
-        if (order.customer != null) const SizedBox(height: 12),
-        _SectionCard(
-          title: 'Assignment',
-          icon: Icons.assignment_ind_outlined,
-          children: [
-            _InfoRow('Branch', order.branchName ?? '—'),
-            _InfoRow('Sales Manager', order.salesManagerName ?? '—'),
-            _InfoRow('Picker', order.picker?.username ?? '—'),
-            if (user.role == UserRole.PICKER &&
-                order.status == OrderStatus.IN_COLLECTION)
-              _TrolleyAssignment(order: order)
-            else
-              _InfoRow('Trolley', order.trolleyId ?? '—'),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (order.backorderedItemsCount > 0)
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: const Color(0xFFF59E0B).withOpacity(0.3),
+            const Text(
+              "Arava biriktirish",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Ushbu buyurtma uchun arava tanlang:",
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            ..._trolleys.map(
+              (t) => ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                title: Text(t.name),
+                subtitle: Text(t.code),
+                trailing: order.trolleyId == t.id
+                    ? const Icon(Icons.check_circle, color: Color(0xFF6366F1))
+                    : null,
+                onTap: () => onAssign(t.id),
               ),
             ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.hourglass_bottom,
-                  color: Color(0xFFF59E0B),
-                  size: 20,
+            if (order.trolleyId != null) ...[
+              const Divider(),
+              ListTile(
+                title: const Text(
+                  "Aravani olib tashlash",
+                  style: TextStyle(color: Colors.red),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  '${order.backorderedItemsCount} backordered item(s)',
-                  style: const TextStyle(
-                    color: Color(0xFFF59E0B),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                onTap: () => onAssign(null),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  "Bekor qilish",
+                  style: TextStyle(color: Colors.grey),
                 ),
-              ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Summary Row Helper ──────────────────────────────────────────────────────────
+
+class _SummaryRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isBoldValue;
+  final Widget? trailing;
+
+  const _SummaryRow(
+    this.label,
+    this.value, {
+    this.isBoldValue = false,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF6B7280),
+              fontWeight: FontWeight.w500,
             ),
           ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: isBoldValue ? FontWeight.w700 : FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        if (trailing != null) ...[const Spacer(), trailing!],
       ],
     );
   }
 }
 
-// ─── Items Tab ────────────────────────────────────────────────────────────────
+// ─── Items Tab ───────────────────────────────────────────────────────────────────
 
-class _ItemsTab extends StatelessWidget {
+class _ItemsTab extends StatefulWidget {
   final OrderDetail order;
-  const _ItemsTab({required this.order});
+  final AuthenticatedUser user;
+
+  const _ItemsTab({required this.order, required this.user});
+
+  @override
+  State<_ItemsTab> createState() => _ItemsTabState();
+}
+
+class _ItemsTabState extends State<_ItemsTab> {
+  final Map<String, bool> _updatingItems = {};
+
+  Future<void> _updateQuantity(OrderItem item, int newCollected) async {
+    final itemId = item.id;
+    if (_updatingItems[itemId] == true) return;
+
+    setState(() => _updatingItems[itemId] = true);
+    try {
+      final nextBackQty =
+          widget.order.items.firstWhere((i) => i.id == itemId).quantity -
+          newCollected;
+
+      final nextStatus = nextBackQty == 0 ? 'available' : 'backordered';
+
+      final success = await context.read<OrdersProvider>().updateOrderItem(
+        orderId: widget.order.id,
+        itemId: itemId,
+        status: nextStatus,
+        backorderedQuantity: nextStatus == 'backordered'
+            ? nextBackQty.toDouble()
+            : null,
+      );
+
+      if (!success && mounted) {
+        final error = context.read<OrdersProvider>().error;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Xatolik: $error')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _updatingItems[itemId] = false);
+      }
+    }
+  }
+
+  Color _getItemStatusColor(OrderItem item) {
+    final collected = item.quantity - (item.backorderedQuantity ?? 0);
+    if (collected == item.quantity) {
+      return const Color(0xFF10B981); // Green
+    } else if (collected > 0) {
+      return const Color(0xFFF59E0B); // Orange
+    } else {
+      return const Color(0xFFEF4444); // Red
+    }
+  }
+
+  Widget _getItemStatusBadge(OrderItem item) {
+    final collected = item.quantity - (item.backorderedQuantity ?? 0);
+    if (collected == item.quantity) {
+      return Container(
+        width: 22,
+        height: 22,
+        decoration: const BoxDecoration(
+          color: Color(0xFF10B981),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.check, color: Colors.white, size: 14),
+      );
+    } else if (collected > 0) {
+      return Container(
+        width: 22,
+        height: 22,
+        decoration: const BoxDecoration(
+          color: Color(0xFFF59E0B),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          "J",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      );
+    } else {
+      return Container(
+        width: 22,
+        height: 22,
+        decoration: const BoxDecoration(
+          color: Color(0xFFEF4444),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          "I",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      );
+    }
+  }
+
+  Widget _getProductIcon(String productName) {
+    final name = productName.toLowerCase();
+    IconData iconData;
+    Color color;
+    Color bg;
+
+    if (name.contains("suv") || name.contains("water")) {
+      iconData = Icons.local_drink_outlined;
+      color = const Color(0xFF3B82F6);
+      bg = const Color(0xFFEFF6FF);
+    } else if (name.contains("cola")) {
+      iconData = Icons.local_drink;
+      color = const Color(0xFFEF4444);
+      bg = const Color(0xFFFFF5F5);
+    } else if (name.contains("musa") || name.contains("пельмени")) {
+      iconData = Icons.rice_bowl_outlined;
+      color = const Color(0xFFD97706);
+      bg = const Color(0xFFFEF3C7);
+    } else if (name.contains("томаты") || name.contains("tomat")) {
+      iconData = Icons.inventory_2_outlined;
+      color = const Color(0xFFEC4899);
+      bg = const Color(0xFFFDF2F8);
+    } else if (name.contains("banana") || name.contains("banan")) {
+      iconData = Icons.shopping_basket_outlined;
+      color = const Color(0xFFEAB308);
+      bg = const Color(0xFFFEFCE8);
+    } else {
+      iconData = Icons.shopping_bag_outlined;
+      color = const Color(0xFF6B7280);
+      bg = const Color(0xFFF3F4F6);
+    }
+
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(iconData, color: color, size: 28),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (order.items.isEmpty) {
+    if (widget.order.items.isEmpty) {
       return const Center(
         child: Text(
-          'No items found',
-          style: TextStyle(color: AppTheme.onSurfaceMuted),
+          'Mahsulotlar topilmadi',
+          style: TextStyle(color: Color(0xFF9CA3AF)),
         ),
       );
     }
 
+    // Checking edit permission
+    final canEdit =
+        widget.user.role == UserRole.ADMIN ||
+        widget.user.role == UserRole.STORE_MANAGER ||
+        widget.user.role == UserRole.SALES_MANAGER ||
+        widget.user.role == UserRole.PICKER;
+
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      itemCount: order.items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      itemCount: widget.order.items.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final item = order.items[index];
+        final item = widget.order.items[index];
+        final collected = item.quantity - (item.backorderedQuantity ?? 0);
+        final isUpdating = _updatingItems[item.id] == true;
+
         return Container(
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
-            color: AppTheme.surfaceVariant,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppTheme.border),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x08000000),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+            border: Border.all(color: const Color(0xFFF3F4F6)),
           ),
           child: Container(
-            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               border: Border(
-                left: BorderSide(color: item.status.color, width: 3),
+                left: BorderSide(color: _getItemStatusColor(item), width: 4),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
                         item.productName,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: AppTheme.onSurface,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: item.status.color.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(
-                          color: item.status.color.withOpacity(0.4),
-                        ),
-                      ),
-                      child: Text(
-                        item.status.displayName,
-                        style: TextStyle(
-                          fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: item.status.color,
+                          fontSize: 15,
+                          color: Colors.black87,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                if (item.productSku != null) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    'SKU: ${item.productSku}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.onSurfaceMuted,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    _ItemStat('Qty', '${item.quantity}'),
-                    if (item.backorderedQuantity != null &&
-                        item.backorderedQuantity! > 0)
-                      _ItemStat(
-                        'Backordered',
-                        '${item.backorderedQuantity}',
-                        warn: true,
+                      const SizedBox(height: 4),
+                      if (item.productSku != null) ...[
+                        Text(
+                          'SKU: ${item.productSku}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF9CA3AF),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                      Text(
+                        'Kerak: ${item.quantity.toInt()} ${item.productName.toLowerCase().contains("banana") || item.productName.toLowerCase().contains("вес") ? "kg" : "dona"}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black54,
+                        ),
                       ),
-                    const Spacer(),
-                    _ItemStat(
-                      'Unit Price',
-                      '\$${item.unitPrice.toStringAsFixed(2)}',
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Quantity controller container
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap:
+                                    (!canEdit || isUpdating || collected <= 0)
+                                    ? null
+                                    : () =>
+                                          _updateQuantity(item, collected - 1),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  child: const Text(
+                                    "—",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (isUpdating)
+                                const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(6),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF6366F1),
+                                    ),
+                                  ),
+                                )
+                              else
+                                Text(
+                                  '$collected',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              GestureDetector(
+                                onTap:
+                                    (!canEdit ||
+                                        isUpdating ||
+                                        collected >= item.quantity)
+                                    ? null
+                                    : () =>
+                                          _updateQuantity(item, collected + 1),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  child: const Text(
+                                    "+",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _getItemStatusBadge(item),
+                      ],
                     ),
-                  ],
+                  //   if (collected == 0 && !isUpdating) ...[
+                  //     const SizedBox(height: 4),
+                  //     const Padding(
+                  //       padding: EdgeInsets.only(right: 0.0),
+                  //       child: Text(
+                  //         "Yo'q",
+                  //         style: TextStyle(
+                  //           color: Color(0xFFEF4444),
+                  //           fontWeight: FontWeight.w700,
+                  //           fontSize: 11,
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ],
+                  //   if (collected > 0 && collected < item.quantity && !isUpdating) ...[
+                  //     const SizedBox(height: 4),
+                  //     const Padding(
+                  //       padding: EdgeInsets.only(right: 0.0),
+                  //       child: Text(
+                  //         "Qisman mavjud",
+                  //         style: TextStyle(
+                  //           color: Color(0xFFF59E0B),
+                  //           fontWeight: FontWeight.w700,
+                  //           fontSize: 11,
+                  //         ),
+                  //       ),
+                  //     ),
+                  // ],
+                  ]
                 ),
               ],
             ),
@@ -328,44 +818,11 @@ class _ItemsTab extends StatelessWidget {
   }
 }
 
-class _ItemStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool warn;
-  const _ItemStat(this.label, this.value, {this.warn = false});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              color: AppTheme.onSurfaceMuted,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: warn ? const Color(0xFFF59E0B) : AppTheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Audit Tab ────────────────────────────────────────────────────────────────
+// ─── Audit Tab ───────────────────────────────────────────────────────────────────
 
 class _AuditTab extends StatelessWidget {
   final String orderId;
+
   const _AuditTab({required this.orderId});
 
   @override
@@ -373,21 +830,25 @@ class _AuditTab extends StatelessWidget {
     final provider = context.watch<OrdersProvider>();
 
     if (provider.logsLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
+        ),
+      );
     }
 
     if (provider.auditLogs.isEmpty) {
       return const Center(
         child: Text(
-          'No audit history',
-          style: TextStyle(color: AppTheme.onSurfaceMuted),
+          'Harakatlar tarixi yo\'q',
+          style: TextStyle(color: Color(0xFF9CA3AF)),
         ),
       );
     }
 
     final logs = provider.auditLogs;
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       itemCount: logs.length,
       itemBuilder: (context, index) {
         return AuditLogTile(
@@ -400,193 +861,58 @@ class _AuditTab extends StatelessWidget {
   }
 }
 
-// ─── Shared Widgets ───────────────────────────────────────────────────────────
-
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _SectionCard({
-    required this.title,
-    required this.icon,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 15, color: AppTheme.onSurfaceMuted),
-              const SizedBox(width: 7),
-              Text(
-                title.toUpperCase(),
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-            ],
-          ),
-          const Divider(height: 16),
-          ...children,
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 110,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.onSurfaceMuted,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppTheme.onSurface,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TrolleyAssignment extends StatefulWidget {
-  final OrderDetail order;
-
-  const _TrolleyAssignment({required this.order});
-
-  @override
-  State<_TrolleyAssignment> createState() => _TrolleyAssignmentState();
-}
-
-class _TrolleyAssignmentState extends State<_TrolleyAssignment> {
-  final _trolleyController = TextEditingController();
-  bool _saving = false;
-
-  @override
-  void dispose() {
-    _trolleyController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _assignTrolley() async {
-    final trolleyId = _trolleyController.text.trim();
-    if (trolleyId.isEmpty) return;
-
-    setState(() => _saving = true);
-    try {
-      // We need to add a method to update trolley ID
-      // For now, this is a placeholder - we'll need to add the API endpoint
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Trolley assignment feature needs backend endpoint'),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to assign trolley: $e')));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _trolleyController,
-              decoration: InputDecoration(
-                labelText: 'Trolley ID',
-                hintText: widget.order.trolleyId ?? 'Enter trolley ID',
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          SizedBox(
-            height: 48,
-            child: ElevatedButton(
-              onPressed: _saving ? null : _assignTrolley,
-              child: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Assign'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// ─── Status Badge Widget ─────────────────────────────────────────────────────────
 
 class _StatusBadge extends StatelessWidget {
   final OrderStatus status;
+
   const _StatusBadge({required this.status});
 
   @override
   Widget build(BuildContext context) {
+    Color bg;
+    Color fg;
+
+    switch (status) {
+      case OrderStatus.IN_COLLECTION:
+        bg = const Color(0xFFEEEAFE);
+        fg = const Color(0xFF6366F1);
+        break;
+      case OrderStatus.CONFIRMED:
+        bg = const Color(0xFFE0F2FE);
+        fg = const Color(0xFF0284C7);
+        break;
+      case OrderStatus.PARTIAL:
+        bg = const Color(0xFFFEF3C7);
+        fg = const Color(0xFFD97706);
+        break;
+      case OrderStatus.READY:
+        bg = const Color(0xFFD1FAE5);
+        fg = const Color(0xFF059669);
+        break;
+      case OrderStatus.COMPLETED:
+        bg = const Color(0xFFECFDF5);
+        fg = const Color(0xFF047857);
+        break;
+      case OrderStatus.CANCELLED:
+        bg = const Color(0xFFFEE2E2);
+        fg = const Color(0xFFDC2626);
+        break;
+      case OrderStatus.DRAFT:
+        bg = const Color(0xFFF3F4F6);
+        fg = const Color(0xFF4B5563);
+        break;
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: status.color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: status.color.withOpacity(0.4)),
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        status.displayName,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: status.color,
-          letterSpacing: 0.3,
-        ),
+        status.displayNameUz,
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg),
       ),
     );
   }

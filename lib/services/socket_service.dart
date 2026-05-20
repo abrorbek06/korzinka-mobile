@@ -1,7 +1,8 @@
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../config/app_config.dart';
 
-typedef SocketMessageHandler = void Function(String type, Map<String, dynamic> payload);
+typedef SocketMessageHandler =
+    void Function(String type, Map<String, dynamic> payload);
 
 class SocketService {
   io.Socket? _socket;
@@ -23,7 +24,20 @@ class SocketService {
 
     _socket!.on('message', (data) {
       if (data is Map<String, dynamic>) {
-        final type = data['type'] as String? ?? '';
+        String? parseString(dynamic value) {
+          if (value == null) return null;
+          if (value is String) {
+            final trimmed = value.trim();
+            return trimmed.isEmpty ? null : trimmed;
+          }
+          if (value is num) return value.toString();
+          if (value is List && value.isNotEmpty) {
+            return value.first.toString();
+          }
+          return null;
+        }
+
+        final type = parseString(data['type']) ?? '';
         final payload = data['payload'] as Map<String, dynamic>? ?? {};
         for (final handler in List.of(_handlers)) {
           handler(type, payload);

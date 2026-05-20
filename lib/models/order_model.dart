@@ -7,6 +7,9 @@ String? parseString(dynamic value) {
     return trimmed.isEmpty ? null : trimmed;
   }
   if (value is num) return value.toString();
+  if (value is List && value.isNotEmpty) {
+    return value.first.toString();
+  }
   return null;
 }
 
@@ -56,6 +59,25 @@ enum OrderStatus {
         return 'Completed';
       case CANCELLED:
         return 'Cancelled';
+    }
+  }
+
+  String get displayNameUz {
+    switch (this) {
+      case DRAFT:
+        return "Yangi";
+      case CONFIRMED:
+        return "Tasdiqlangan";
+      case IN_COLLECTION:
+        return "Yig'ilmoqda";
+      case PARTIAL:
+        return "Qisman";
+      case READY:
+        return "Tayyor";
+      case COMPLETED:
+        return "Yakunlangan";
+      case CANCELLED:
+        return "Bekor qilingan";
     }
   }
 
@@ -226,29 +248,30 @@ class OrderItem {
       productName = rawProductName.first.toString();
     }
 
-    if (product != null) {
-      final rawName = product['name'];
+    String? resolveName(dynamic rawName) {
+      if (rawName == null) return null;
       if (rawName is String) {
-        productName = rawName;
-      } else if (rawName is Map<String, dynamic>) {
-        // Handle uz and ru being either string or list
-        String? uzName;
-        final uz = rawName['uz'];
-        if (uz is String) {
-          uzName = uz;
-        } else if (uz is List && uz.isNotEmpty) {
-          uzName = uz.first.toString();
-        }
+        final trimmed = rawName.trim();
+        return trimmed.isEmpty ? null : trimmed;
+      }
+      if (rawName is List && rawName.isNotEmpty) {
+        return resolveName(rawName.first);
+      }
+      if (rawName is Map<String, dynamic>) {
+        final uz = resolveName(rawName['uz']);
+        final ru = resolveName(rawName['ru']);
+        return uz ?? ru;
+      }
+      return rawName.toString().trim().isEmpty ? null : rawName.toString();
+    }
 
-        String? ruName;
-        final ru = rawName['ru'];
-        if (ru is String) {
-          ruName = ru;
-        } else if (ru is List && ru.isNotEmpty) {
-          ruName = ru.first.toString();
-        }
-
-        productName = uzName ?? ruName ?? productName;
+    if (product != null) {
+      final productNameCandidate =
+          resolveName(product['name']) ??
+          resolveName(product['productName']) ??
+          resolveName(product['title']);
+      if (productNameCandidate != null) {
+        productName = productNameCandidate;
       }
     }
 
@@ -375,11 +398,14 @@ class OrderListItem {
   final String? branchName;
   final String? salesManagerId;
   final String? salesManagerName;
+  final String? pickerId;
+  final String? pickerName;
   final DateTime createdAt;
   final DateTime? endDate;
   final int backorderedItemsCount;
   final int totalItems;
   final String? trolleyId;
+  final String? notes;
 
   const OrderListItem({
     required this.id,
@@ -393,17 +419,44 @@ class OrderListItem {
     this.branchName,
     this.salesManagerId,
     this.salesManagerName,
+    this.pickerId,
+    this.pickerName,
     required this.createdAt,
     this.endDate,
     required this.backorderedItemsCount,
     required this.totalItems,
     this.trolleyId,
+    this.notes,
   });
 
   factory OrderListItem.fromJson(Map<String, dynamic> json) {
     final customer = json['customer'] as Map<String, dynamic>?;
     final branch = json['branch'] as Map<String, dynamic>?;
     final salesManager = json['salesManager'] as Map<String, dynamic>?;
+    final picker = json['picker'] as Map<String, dynamic>?;
+
+    int? parseInt(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) {
+        return int.tryParse(value) ?? double.tryParse(value)?.toInt();
+      }
+      return null;
+    }
+
+    dynamic resolveItems(dynamic raw) {
+      if (raw is List) return raw;
+      if (raw is Map<String, dynamic>) {
+        return raw['data'] ?? raw['items'] ?? raw['orderItems'] ?? raw['order_items'];
+      }
+      return null;
+    }
+
+    final itemsList = resolveItems(json['items'] ?? json['orderItems'] ?? json['order_items']);
+    final inferredTotalItems = itemsList is List
+        ? itemsList.length
+        : parseInt(json['totalItems']) ?? 0;
 
     return OrderListItem(
       id: json['id']?.toString() ?? '',
@@ -420,6 +473,9 @@ class OrderListItem {
       salesManagerName:
           salesManager?['username']?.toString() ??
           salesManager?['name']?.toString(),
+      pickerId: picker?['id']?.toString(),
+      pickerName:
+          picker?['name']?.toString() ?? picker?['username']?.toString(),
       createdAt: DateTime.parse(
         json['createdAt']?.toString() ?? DateTime.now().toIso8601String(),
       ),
@@ -429,8 +485,9 @@ class OrderListItem {
             )
           : null,
       backorderedItemsCount: json['backorderedItemsCount'] as int? ?? 0,
-      totalItems: json['totalItems'] as int? ?? 0,
+      totalItems: inferredTotalItems,
       trolleyId: parseString(json['trolleyId']) ?? _nestedTrolley(json),
+      notes: json['notes']?.toString(),
     );
   }
 }
@@ -454,11 +511,14 @@ class OrderDetail extends OrderListItem {
     super.branchName,
     super.salesManagerId,
     super.salesManagerName,
+    super.pickerId,
+    super.pickerName,
     required super.createdAt,
     super.endDate,
     required super.backorderedItemsCount,
     required super.totalItems,
     super.trolleyId,
+    super.notes,
     required this.items,
     this.customer,
     this.picker,
@@ -470,10 +530,19 @@ class OrderDetail extends OrderListItem {
     final branch = json['branch'] as Map<String, dynamic>?;
     final salesManager = json['salesManager'] as Map<String, dynamic>?;
     final picker = json['picker'] as Map<String, dynamic>?;
-    final itemsList =
-        json['items'] ?? json['orderItems'] ?? json['order_items'];
-    final items =
-        (itemsList as List<dynamic>?)
+
+    dynamic resolveItems(dynamic raw) {
+      if (raw is List) return raw;
+      if (raw is Map<String, dynamic>) {
+        return raw['data'] ?? raw['items'] ?? raw['orderItems'] ?? raw['order_items'];
+      }
+      return null;
+    }
+
+    final itemsList = resolveItems(
+      json['items'] ?? json['orderItems'] ?? json['order_items'],
+    );
+    final items = (itemsList as List<dynamic>?)
             ?.map((i) => OrderItem.fromJson(i as Map<String, dynamic>))
             .toList() ??
         [];
@@ -497,6 +566,9 @@ class OrderDetail extends OrderListItem {
       salesManagerName:
           salesManager?['username']?.toString() ??
           salesManager?['name']?.toString(),
+      pickerId: picker?['id']?.toString(),
+      pickerName:
+          picker?['name']?.toString() ?? picker?['username']?.toString(),
       createdAt: DateTime.parse(
         json['createdAt']?.toString() ?? DateTime.now().toIso8601String(),
       ),
@@ -514,6 +586,7 @@ class OrderDetail extends OrderListItem {
       backorderedItemsCount: backorderedCount,
       totalItems: items.length,
       trolleyId: parseString(json['trolleyId']) ?? _nestedTrolley(json),
+      notes: json['notes']?.toString(),
       items: items,
       customer: customer != null ? Customer.fromJson(customer) : null,
       picker: picker != null ? Picker.fromJson(picker) : null,
@@ -571,12 +644,13 @@ const List<TransitionDefinition> kTransitionRules = [
   TransitionDefinition(
     from: OrderStatus.IN_COLLECTION,
     to: OrderStatus.READY,
-    roles: ['ADMIN', 'STORE_MANAGER'],
+    roles: ['ADMIN', 'STORE_MANAGER', 'PICKER'],
   ),
   TransitionDefinition(
     from: OrderStatus.IN_COLLECTION,
     to: OrderStatus.PARTIAL,
-    roles: ['ADMIN', 'STORE_MANAGER'],
+    roles: ['ADMIN', 'STORE_MANAGER', 'PICKER'],
+    requiresBackorderedItems: true,
   ),
   TransitionDefinition(
     from: OrderStatus.IN_COLLECTION,
@@ -586,7 +660,7 @@ const List<TransitionDefinition> kTransitionRules = [
   TransitionDefinition(
     from: OrderStatus.PARTIAL,
     to: OrderStatus.READY,
-    roles: ['ADMIN', 'STORE_MANAGER', 'SALES_MANAGER'],
+    roles: ['ADMIN', 'STORE_MANAGER', 'SALES_MANAGER', 'PICKER'],
     requiresArrivedItemIds: true,
   ),
   TransitionDefinition(

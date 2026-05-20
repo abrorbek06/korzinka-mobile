@@ -11,7 +11,7 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = order.status;
+    
 
     return GestureDetector(
       onTap: onTap,
@@ -53,15 +53,15 @@ class OrderCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            if (order.customerName != null)
-              Text(
-                'Mijoz: ${order.customerName!}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+            // const SizedBox(height: 12),
+            // if (order.customerName != null)
+            //   Text(
+            //     'Mijoz: ${order.customerName!}',
+            //     style: const TextStyle(
+            //       fontSize: 13,
+            //       fontWeight: FontWeight.w600,
+            //     ),
+            //   ),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -72,7 +72,9 @@ class OrderCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '${order.totalItems} ta mahsulot',
+                  order.totalItems > 0
+                      ? '${order.totalItems} ta mahsulot'
+                      : '— ta mahsulot',
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.onSurfaceMuted,
@@ -82,15 +84,15 @@ class OrderCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: status.lightColor,
+                    color: order.status.lightColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    status.displayName,
+                    order.status.displayName,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: status.color,
+                      color: order.status.color,
                     ),
                   ),
                 ),
@@ -116,7 +118,7 @@ class OrderCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: order.paymentStatus.color.withOpacity(0.15),
+                    color: order.paymentStatus.color.withAlpha((0.15 * 255).round()),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(

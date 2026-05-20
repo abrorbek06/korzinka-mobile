@@ -46,12 +46,35 @@ class _TransitionSheetState extends State<TransitionSheet> {
   final _notesController = TextEditingController();
   TransitionDefinition? _selected;
   bool _submitting = false;
+  String? _errorMessage;
   List<PickerUser> _pickers = [];
   PickerUser? _selectedPicker;
   bool _loadingPickers = false;
+  final Set<String> _selectedBackorderedItemIds = {};
+  final Map<String, TextEditingController> _backorderedQuantityControllers = {};
+  final Set<String> _selectedArrivedItemIds = {};
 
-  List<TransitionDefinition> get _available =>
-      availableTransitions(widget.order.status, widget.currentUser.role.name);
+  List<TransitionDefinition> get _available {
+    // Base available transitions according to the static role map.
+    final base = availableTransitions(
+      widget.order.status,
+      widget.currentUser.role.name,
+    );
+
+    // If nothing is available via the static map, and the current user is
+    // a picker, merge-in any transitions that explicitly list PICKER as a
+    // role for this from-status. This allows the assigned picker to act
+    // on picker-scoped transitions (e.g. IN_COLLECTION -> PARTIAL) even
+    // if other role checks differ elsewhere.
+    if (base.isEmpty && widget.currentUser.role == UserRole.PICKER) {
+      final pickerRules = kTransitionRules.where((t) {
+        return t.from == widget.order.status && t.roles.contains('PICKER');
+      }).toList();
+      return [...base, ...pickerRules];
+    }
+
+    return base;
+  }
 
   @override
   void initState() {
@@ -59,11 +82,47 @@ class _TransitionSheetState extends State<TransitionSheet> {
     if (widget.initialTarget != null) {
       try {
         _selected = _available.firstWhere((t) => t.to == widget.initialTarget);
+        if (_selected?.requiresArrivedItemIds == true) {
+          _selectedArrivedItemIds.addAll(
+            widget.order.items
+                .where((i) => i.status == ItemStatus.BACKORDERED)
+                .map((i) => i.id),
+          );
+        }
       } catch (_) {
         // If the target is not available for this role, leave it null
       }
     }
+    // If the transition requires a picker and the current user is the
+    // assigned picker, pre-select them so they don't need to re-select.
+    if (_selected?.requiresPickerId == true &&
+        widget.order.pickerId != null &&
+        widget.order.pickerId == widget.currentUser.id) {
+      _selectedPicker = PickerUser(
+        id: widget.currentUser.id,
+        username: widget.currentUser.username,
+        name: widget.currentUser.username,
+        activeAssignmentsCount: 0,
+      );
+    }
+
     _loadPickers();
+
+    // Debug: show computed available transitions and current role once
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final role = widget.currentUser.role.name;
+      final names = _available.map((t) => '${t.from.name}->${t.to.name}').join(', ');
+      final msg = 'role=$role available=[$names]';
+      debugPrint('[TransitionSheet] $msg');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    });
   }
 
   Future<void> _loadPickers() async {
@@ -81,7 +140,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
         _loadingPickers = false;
       });
     } catch (e) {
-      print('[TransitionSheet] Failed to load pickers: $e');
+      debugPrint('[TransitionSheet] Failed to load pickers: $e');
       setState(() => _loadingPickers = false);
     }
   }
@@ -90,11 +149,23 @@ class _TransitionSheetState extends State<TransitionSheet> {
   void dispose() {
     _trolleyIdController.dispose();
     _notesController.dispose();
+    for (final controller in _backorderedQuantityControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (_selected == null) return;
+    // Debug: show which transition is being submitted and current computed availability
+    final submitMsg = 'Submitting transition ${_selected!.from.name}->${_selected!.to.name} for role=${widget.currentUser.role.name}';
+    debugPrint('[TransitionSheet] $submitMsg');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(submitMsg), duration: const Duration(seconds: 3)),
+      );
+    }
+    setState(() => _errorMessage = null);
     if (_selected!.requiresPickerId && _selectedPicker == null) {
       _showError('Please select a picker for this transition.');
       return;
@@ -104,26 +175,129 @@ class _TransitionSheetState extends State<TransitionSheet> {
       _showError('Trolley ID is required for this transition.');
       return;
     }
+    if (_selected!.requiresPaid &&
+        widget.order.paymentStatus != PaymentStatus.PAID) {
+      _showError('Order must be marked PAID before this transition.');
+      return;
+    }
+    // Some transitions require a backorder quantity selection.
+    if (_selected!.requiresBackorderedItems) {
+      if (_selectedBackorderedItemIds.isEmpty) {
+        _showError('Please select at least one item to mark as backordered.');
+        return;
+      }
+      for (final itemId in _selectedBackorderedItemIds) {
+        final item = widget.order.items.firstWhere((i) => i.id == itemId);
+        final text = _backorderedQuantityControllers[itemId]?.text.trim() ?? '';
+        final available = int.tryParse(text);
+        if (available == null || available < 0 || available > item.quantity) {
+          _showError(
+            'Enter a valid available quantity for ${item.productName} (0..${item.quantity}).',
+          );
+          return;
+        }
+        if (available == item.quantity) {
+          _showError(
+            'Enter a valid available quantity for ${item.productName} (0..${item.quantity - 1}).',
+          );
+          return;
+        }
+      }
+    }
+    // PARTIAL → READY requires arrivedItemIds payload
+    if (_selected!.requiresArrivedItemIds) {
+      if (_selectedArrivedItemIds.isEmpty) {
+        _showError('Please mark all backordered items as arrived.');
+        return;
+      }
+      final backorderedIds = widget.order.items
+          .where((i) => i.status == ItemStatus.BACKORDERED)
+          .map((i) => i.id)
+          .toSet();
+      if (_selectedArrivedItemIds.length != backorderedIds.length ||
+          !_selectedArrivedItemIds.every(backorderedIds.contains)) {
+        _showError(
+          'All backordered items must be marked arrived before moving to READY.',
+        );
+        return;
+      }
+    }
 
     setState(() => _submitting = true);
     final provider = context.read<OrdersProvider>();
 
+    // Build backorderedItems payload
+    List<Map<String, dynamic>>? backorderedItemsPayload;
+    if (_selected!.requiresBackorderedItems &&
+        _selectedBackorderedItemIds.isNotEmpty) {
+      backorderedItemsPayload = _selectedBackorderedItemIds.map((itemId) {
+        final item = widget.order.items.firstWhere((i) => i.id == itemId);
+        final text = _backorderedQuantityControllers[itemId]?.text.trim() ?? '';
+        final available = int.tryParse(text) ?? item.quantity.toInt();
+        final missing = item.quantity.toInt() - available;
+        return {'itemId': itemId, 'backorderedQuantity': missing};
+      }).toList();
+    }
+
+    final isInCollectionToPartial =
+        _selected!.from == OrderStatus.IN_COLLECTION &&
+        _selected!.to == OrderStatus.PARTIAL;
+
+    if (isInCollectionToPartial) {
+      // Send item-level backorder declarations before the transition.
+      for (final itemId in _selectedBackorderedItemIds) {
+        final item = widget.order.items.firstWhere((i) => i.id == itemId);
+        final available = int.parse(
+          _backorderedQuantityControllers[itemId]!.text.trim(),
+        );
+        final missing = item.quantity.toInt() - available;
+        final itemSuccess = await provider.updateOrderItem(
+          orderId: widget.order.id,
+          itemId: itemId,
+          status: ItemStatus.BACKORDERED.name.toLowerCase(),
+          backorderedQuantity: missing.toDouble(),
+        );
+        if (!itemSuccess) {
+          _showError(provider.error ?? 'Failed to declare backordered item.');
+          provider.clearError();
+          setState(() => _submitting = false);
+          return;
+        }
+      }
+    }
+
+    // Ensure pickers include their id as pickerId in the request so the
+    // server can validate assigned-picker transitions even when the
+    // transition definition doesn't require an explicit pickerId.
+    final effectivePickerId = _selected!.requiresPickerId
+      ? _selectedPicker!.id
+      : (widget.currentUser.role == UserRole.PICKER
+        ? widget.currentUser.id
+        : null);
+
     final success = await provider.performTransition(
       orderId: widget.order.id,
       nextStatus: _selected!.to,
-      pickerId: _selected!.requiresPickerId ? _selectedPicker!.id : null,
+      pickerId: effectivePickerId,
       trolleyId: _selected!.requiresTrolleyId
-          ? _trolleyIdController.text.trim()
-          : null,
+        ? _trolleyIdController.text.trim()
+        : null,
+      backorderedItems: isInCollectionToPartial
+        ? null
+        : backorderedItemsPayload,
+      arrivedItemIds: _selected!.requiresArrivedItemIds
+        ? _selectedArrivedItemIds.toList()
+        : null,
       notes: _notesController.text.trim().isNotEmpty
-          ? _notesController.text.trim()
-          : null,
+        ? _notesController.text.trim()
+        : null,
     );
 
     if (!mounted) return;
     setState(() => _submitting = false);
 
     if (success) {
+      setState(() => _errorMessage = null);
       Navigator.of(context).pop();
     } else {
       _showError(provider.error ?? 'Transition failed.');
@@ -132,13 +306,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: Theme.of(context).colorScheme.error,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    setState(() => _errorMessage = msg);
   }
 
   @override
@@ -193,6 +361,42 @@ class _TransitionSheetState extends State<TransitionSheet> {
               ),
             ),
 
+            if (_errorMessage != null) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3F2),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFF2C0C0)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 20,
+                        color: Color(0xFFE53935),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _errorMessage ?? '',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFFB71C1C),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+
             const Divider(height: 20),
 
             Expanded(
@@ -226,21 +430,102 @@ class _TransitionSheetState extends State<TransitionSheet> {
                       ),
                     ] else ...[
                       Text(
-                        'MOVE TO',
-                        style: Theme.of(context).textTheme.labelSmall,
+                        'Statusni tanlang',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w700),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
 
                       // Transition options
                       ...transitions.map(
                         (t) => _TransitionOption(
                           definition: t,
                           selected: _selected == t,
-                          onTap: () => setState(() => _selected = t),
+                          onTap: () => setState(() {
+                            _errorMessage = null;
+                            _selected = t;
+                            _selectedBackorderedItemIds.clear();
+                            _selectedArrivedItemIds.clear();
+                            for (final controller
+                                in _backorderedQuantityControllers.values) {
+                              controller.dispose();
+                            }
+                            _backorderedQuantityControllers.clear();
+                            if (t.requiresArrivedItemIds) {
+                              _selectedArrivedItemIds.addAll(
+                                widget.order.items
+                                    .where(
+                                      (i) => i.status == ItemStatus.BACKORDERED,
+                                    )
+                                    .map((i) => i.id),
+                              );
+                            }
+                          }),
                         ),
                       ),
 
-                      const SizedBox(height: 16),
+                      // const SizedBox(height: 18),
+
+                      // if (_selected != null) ...[
+                      //   Container(
+                      //     width: double.infinity,
+                      //     padding: const EdgeInsets.all(14),
+                      //     decoration: BoxDecoration(
+                      //       color: AppTheme.surfaceVariant,
+                      //       borderRadius: BorderRadius.circular(16),
+                      //       border: Border.all(color: AppTheme.border),
+                      //     ),
+                      //     child: Column(
+                      //       crossAxisAlignment: CrossAxisAlignment.start,
+                      //       children: [
+                      //         Text(
+                      //           _selected!.requiresBackorderedItems
+                      //               ? 'Tayyor qilish uchun yetishmayotgan mahsulotlarni tanlang.'
+                      //               : _selected!.requiresArrivedItemIds
+                      //               ? 'Tayyor qilish uchun barcha backordered mahsulotlar mavjud bo‘lishi kerak.'
+                      //               : 'Bu holatga o‘tish uchun qo‘shimcha ma’lumot kerak emas.',
+                      //           style: Theme.of(context).textTheme.bodyMedium
+                      //               ?.copyWith(
+                      //                 color: AppTheme.onSurface,
+                      //                 height: 1.4,
+                      //               ),
+                      //         ),
+                      //         if (_selected!.requiresBackorderedItems) ...[
+                      //           const SizedBox(height: 12),
+                      //           Row(
+                      //             children: [
+                      //               Container(
+                      //                 padding: const EdgeInsets.all(8),
+                      //                 decoration: BoxDecoration(
+                      //                   shape: BoxShape.circle,
+                      //                   color: const Color(0xFFDDEEFF),
+                      //                 ),
+                      //                 child: const Icon(
+                      //                   Icons.check,
+                      //                   size: 16,
+                      //                   color: Color(0xFF1E88E5),
+                      //                 ),
+                      //               ),
+                      //               const SizedBox(width: 10),
+                      //               Expanded(
+                      //                 child: Text(
+                      //                   'Backordered mahsulotlar soni: ${_selectedBackorderedItemIds.length}',
+                      //                   style: Theme.of(context)
+                      //                       .textTheme
+                      //                       .bodyMedium
+                      //                       ?.copyWith(
+                      //                         fontWeight: FontWeight.w600,
+                      //                       ),
+                      //                 ),
+                      //               ),
+                      //             ],
+                      //           ),
+                      //         ],
+                      //       ],
+                      //     ),
+                      //   ),
+                      //   const SizedBox(height: 16),
+                      // ],
 
                       // Picker selection dropdown (conditional)
                       if (_selected?.requiresPickerId == true) ...[
@@ -252,9 +537,9 @@ class _TransitionSheetState extends State<TransitionSheet> {
                                 ),
                               )
                             : DropdownButtonFormField<PickerUser>(
-                                value: _selectedPicker,
+                                initialValue: _selectedPicker,
                                 decoration: const InputDecoration(
-                                  labelText: 'Select Picker *',
+                                  labelText: 'Picker ni tanlang *',
                                   prefixIcon: Icon(
                                     Icons.person_search_outlined,
                                   ),
@@ -274,7 +559,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
                                           ),
                                         ),
                                         Text(
-                                          '${picker.username} (${picker.activeAssignmentsCount} active)',
+                                          '${picker.username} (${picker.activeAssignmentsCount} ta faol)',
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: AppTheme.onSurfaceMuted,
@@ -294,34 +579,324 @@ class _TransitionSheetState extends State<TransitionSheet> {
                         TextFormField(
                           controller: _trolleyIdController,
                           decoration: const InputDecoration(
-                            labelText: 'Trolley ID *',
+                            labelText: 'Arava ID *',
                             prefixIcon: Icon(Icons.local_shipping_outlined),
-                            hintText: 'Enter trolley ID',
+                            hintText: 'Arava ID kiriting',
                           ),
                         ),
                         const SizedBox(height: 12),
                       ],
 
-                      // Notes
-                      TextFormField(
-                        controller: _notesController,
-                        decoration: const InputDecoration(
-                          labelText: 'Notes (optional)',
-                          prefixIcon: Icon(Icons.notes_outlined),
-                          hintText: 'Add a note...',
+                      if (_selected?.requiresArrivedItemIds == true) ...[
+                        Text(
+                          'Barcha backordered mahsulotlar mavjud bo‘lishi kerak.',
+                          style: Theme.of(context).textTheme.labelSmall,
                         ),
-                        maxLines: 2,
-                      ),
+                        const SizedBox(height: 8),
+                        Container(
+                          constraints: const BoxConstraints(maxHeight: 140),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFF),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            shrinkWrap: true,
+                            itemCount: widget.order.items
+                                .where(
+                                  (i) => i.status == ItemStatus.BACKORDERED,
+                                )
+                                .length,
+                            itemBuilder: (context, index) {
+                              final item = widget.order.items
+                                  .where(
+                                    (i) => i.status == ItemStatus.BACKORDERED,
+                                  )
+                                  .toList()[index];
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 6,
+                                ),
+                                leading: const Icon(
+                                  Icons.check_circle_outline,
+                                  color: Color(0xFF4338CA),
+                                ),
+                                title: Text(item.productName),
+                                subtitle: Text(
+                                  'Miqdor: ${item.quantity.toInt()} dona',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
 
-                      const SizedBox(height: 20),
-
-                      // Submit
+                      if (_selected?.requiresBackorderedItems == true) ...[
+                        Text(
+                          'BOR MAHSULOTLAR',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                              ),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Column(
+                            children: List.generate(widget.order.items.length, (
+                              index,
+                            ) {
+                              final item = widget.order.items[index];
+                              final isSelected = _selectedBackorderedItemIds
+                                  .contains(item.id);
+                              final controller = _backorderedQuantityControllers
+                                  .putIfAbsent(
+                                    item.id,
+                                    () => TextEditingController(
+                                      text: (item.quantity.toInt() - 1)
+                                          .clamp(0, item.quantity.toInt())
+                                          .toString(),
+                                    ),
+                                  );
+                              return Column(
+                                children: [
+                                  CheckboxListTile(
+                                    title: Text(
+                                      item.productName,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      'Kerak: ${item.quantity.toInt()} dona',
+                                    ),
+                                    value: isSelected,
+                                    onChanged: (value) {
+                                      setState(() {
+                                        if (value == true) {
+                                          _selectedBackorderedItemIds.add(
+                                            item.id,
+                                          );
+                                        } else {
+                                          _selectedBackorderedItemIds.remove(
+                                            item.id,
+                                          );
+                                        }
+                                      });
+                                    },
+                                    controlAffinity:
+                                        ListTileControlAffinity.leading,
+                                  ),
+                                  if (isSelected) ...[
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        20,
+                                        0,
+                                        20,
+                                        16,
+                                      ),
+                                      child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF3F4F6),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                                children: [
+                                                  IconButton(
+                                                    padding: EdgeInsets.zero,
+                                                    constraints:
+                                                        const BoxConstraints(),
+                                                    icon: const Icon(
+                                                      Icons.remove,
+                                                      size: 20,
+                                                    ),
+                                                    onPressed: () {
+                                                      int current =
+                                                          int.tryParse(
+                                                            controller.text,
+                                                          ) ??
+                                                          0;
+                                                      int next = current - 1;
+                                                      final min = 0;
+                                                      final max = item.quantity
+                                                          .toInt();
+                                                      if (next < min) {
+                                                        next = min;
+                                                      }
+                                                      if (next > max) {
+                                                        next = max;
+                                                      }
+                                                      controller.text = next
+                                                          .toString();
+                                                      setState(() {});
+                                                    },
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  SizedBox(
+                                                    width: 36,
+                                                    child: Text(
+                                                      controller.text,
+                                                      textAlign:
+                                                          TextAlign.center,
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  IconButton(
+                                                    padding: EdgeInsets.zero,
+                                                    constraints:
+                                                        const BoxConstraints(),
+                                                    icon: const Icon(
+                                                      Icons.add,
+                                                      size: 20,
+                                                    ),
+                                                    onPressed: () {
+                                                      int current =
+                                                          int.tryParse(
+                                                            controller.text,
+                                                          ) ??
+                                                          1;
+                                                      int next = current + 1;
+                                                      final min = 1;
+                                                      final max = item.quantity
+                                                          .toInt();
+                                                      if (next < min) {
+                                                        next = min;
+                                                      }
+                                                      if (next > max) {
+                                                        next = max;
+                                                      }
+                                                      controller.text = next
+                                                          .toString();
+                                                      setState(() {});
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                      
+                                      
+                                      // Container(
+                                      //   padding: const EdgeInsets.symmetric(
+                                      //     horizontal: 12,
+                                      //     vertical: 10,
+                                      //   ),
+                                      //   decoration: BoxDecoration(
+                                      //     color: Colors.white,
+                                      //     borderRadius: BorderRadius.circular(
+                                      //       14,
+                                      //     ),
+                                      //     border: Border.all(
+                                      //       color: const Color(0xFFE5E7EB),
+                                      //     ),
+                                      //   ),
+                                      //   child: Row(
+                                      //     children: [
+                                      //       // Expanded(
+                                      //       //   child: Column(
+                                      //       //     crossAxisAlignment:
+                                      //       //         CrossAxisAlignment.start,
+                                      //       //     children: [
+                                      //       //       // Text(
+                                      //       //       //   'Yetishmayotgan soni',
+                                      //       //       //   style: Theme.of(
+                                      //       //       //     context,
+                                      //       //       //   ).textTheme.bodyMedium,
+                                      //       //       // ),
+                                      //       //       const SizedBox(height: 6),
+                                      //       //       Text(
+                                      //       //         'Mavjud:',
+                                      //       //         style: Theme.of(context)
+                                      //       //             .textTheme
+                                      //       //             .bodySmall
+                                      //       //             ?.copyWith(
+                                      //       //               color: AppTheme
+                                      //       //                   .onSurfaceMuted,
+                                      //       //             ),
+                                      //       //       ),
+                                      //       //     ],
+                                      //       //   ),
+                                      //       // ),
+                                      //       // const SizedBox(width: 12),
+                                      //     ],
+                                      //   ),
+                                      // ),
+                                    ),
+                                  ],
+                                ],
+                              );
+                            }),
+                          ),
+                        ),
+                        // const SizedBox(height: 16),
+                        // Container(
+                        //   padding: const EdgeInsets.symmetric(
+                        //     horizontal: 16,
+                        //     vertical: 14,
+                        //   ),
+                        //   decoration: BoxDecoration(
+                        //     color: const Color(0xFFF7F9FF),
+                        //     borderRadius: BorderRadius.circular(16),
+                        //   ),
+                        //   child: Row(
+                        //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        //     children: [
+                        //       Column(
+                        //         crossAxisAlignment: CrossAxisAlignment.start,
+                        //         children: [
+                        //           Text(
+                        //             'Tanlangan mahsulotlar',
+                        //             style: Theme.of(context).textTheme.bodySmall
+                        //                 ?.copyWith(
+                        //                   color: AppTheme.onSurfaceMuted,
+                        //                 ),
+                        //           ),
+                        //           const SizedBox(height: 4),
+                        //           Text(
+                        //             '${_selectedBackorderedItemIds.length} tur',
+                        //             style: const TextStyle(
+                        //               fontWeight: FontWeight.w700,
+                        //               fontSize: 14,
+                        //             ),
+                        //           ),
+                        //         ],
+                        //       ),
+                        //     ],
+                        //   ),
+                        // ),
+                        const SizedBox(height: 16),
+                      ], // Submit
                       SizedBox(
-                        height: 50,
+                        height: 52,
                         child: ElevatedButton(
                           onPressed: _selected == null || _submitting
                               ? null
                               : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6366F1),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
                           child: _submitting
                               ? const SizedBox(
                                   width: 20,
@@ -338,11 +913,29 @@ class _TransitionSheetState extends State<TransitionSheet> {
                                     const SizedBox(width: 8),
                                     Text(
                                       _selected != null
-                                          ? 'Move to ${_selected!.to.displayName}'
-                                          : 'Select a transition',
+                                          ? '${_selected!.to.displayNameUz} holatiga o‘tkazish'
+                                          : 'Holatni tanlang',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ],
                                 ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: TextButton(
+                          onPressed: _submitting
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          child: const Text(
+                            'Bekor qilish',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF6366F1),
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -387,7 +980,7 @@ class _TransitionOption extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: selected
-              ? toStatus.color.withOpacity(0.12)
+              ? toStatus.color.withAlpha((0.12 * 255).round())
               : AppTheme.surfaceVariant,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
@@ -415,14 +1008,25 @@ class _TransitionOption extends StatelessWidget {
                       color: selected ? toStatus.color : AppTheme.onSurface,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _statusDescription(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.onSurfaceMuted,
+                    ),
+                  ),
                   if (definition.requiresPickerId ||
                       definition.requiresPaid ||
                       definition.requiresArrivedItemIds)
-                    Text(
-                      _requirementText(),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.onSurfaceMuted,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        _requirementText(),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.onSurfaceMuted,
+                        ),
                       ),
                     ),
                 ],
@@ -436,12 +1040,34 @@ class _TransitionOption extends StatelessWidget {
     );
   }
 
+  String _statusDescription() {
+    switch (definition.to) {
+      case OrderStatus.READY:
+        return 'Barcha mahsulotlar mavjud';
+      case OrderStatus.PARTIAL:
+        return 'Ba’zi mahsulotlar yetishmayapti';
+      case OrderStatus.CANCELLED:
+        return 'Buyurtma bekor qilinadi';
+      case OrderStatus.IN_COLLECTION:
+        return 'Yig‘ish jarayonida';
+      case OrderStatus.CONFIRMED:
+        return 'Buyurtma tasdiqlangan';
+      default:
+        return '';
+    }
+  }
+
   String _requirementText() {
     final parts = <String>[];
-    if (definition.requiresPickerId) parts.add('Requires picker');
-    if (definition.requiresTrolleyId) parts.add('Requires trolley');
-    if (definition.requiresPaid) parts.add('Requires PAID');
-    if (definition.requiresArrivedItemIds) parts.add('Requires arrived items');
+    if (definition.requiresPickerId) parts.add('Picker tanlash kerak');
+    if (definition.requiresTrolleyId) parts.add('Arava ID kerak');
+    if (definition.requiresBackorderedItems) {
+      parts.add('Yetishmayotgan miqdor kerak');
+    }
+    if (definition.requiresPaid) parts.add('Buyurtma PAID bo‘lishi kerak');
+    if (definition.requiresArrivedItemIds) {
+      parts.add('Barcha backordered mahsulotlar yetishi kerak');
+    }
     return parts.join(' · ');
   }
 }
@@ -534,9 +1160,9 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: status.color.withOpacity(0.12),
+        color: status.color.withAlpha((0.12 * 255).round()),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: status.color.withOpacity(0.4)),
+        border: Border.all(color: status.color.withAlpha((0.4 * 255).round())),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

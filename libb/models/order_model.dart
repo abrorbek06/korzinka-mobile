@@ -11,7 +11,20 @@ int _parseInt(dynamic value) {
 }
 
 String _normalizeEnumString(dynamic value) {
-  return (value as String?)?.toUpperCase() ?? '';
+  String? parseString(dynamic value) {
+    if (value == null) return null;
+    if (value is String) {
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? null : trimmed;
+    }
+    if (value is num) return value.toString();
+    if (value is List && value.isNotEmpty) {
+      return value.first.toString();
+    }
+    return null;
+  }
+
+  return parseString(value)?.toUpperCase() ?? '';
 }
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
@@ -27,37 +40,58 @@ enum OrderStatus {
 
   String get uzName {
     switch (this) {
-      case DRAFT:        return AppStrings.statusDraft;
-      case CONFIRMED:    return AppStrings.statusConfirmed;
-      case IN_COLLECTION:return AppStrings.statusInCollection;
-      case PARTIAL:      return AppStrings.statusPartial;
-      case READY:        return AppStrings.statusReady;
-      case COMPLETED:    return AppStrings.statusCompleted;
-      case CANCELLED:    return AppStrings.statusCancelled;
+      case DRAFT:
+        return AppStrings.statusDraft;
+      case CONFIRMED:
+        return AppStrings.statusConfirmed;
+      case IN_COLLECTION:
+        return AppStrings.statusInCollection;
+      case PARTIAL:
+        return AppStrings.statusPartial;
+      case READY:
+        return AppStrings.statusReady;
+      case COMPLETED:
+        return AppStrings.statusCompleted;
+      case CANCELLED:
+        return AppStrings.statusCancelled;
     }
   }
 
   Color get color {
     switch (this) {
-      case DRAFT:        return AppColors.yangiColor;
-      case CONFIRMED:    return AppColors.tasdiqColor;
-      case IN_COLLECTION:return AppColors.yigColor;
-      case PARTIAL:      return AppColors.qismanColor;
-      case READY:        return AppColors.tayyorColor;
-      case COMPLETED:    return AppColors.yakunColor;
-      case CANCELLED:    return AppColors.bekorColor;
+      case DRAFT:
+        return AppColors.yangiColor;
+      case CONFIRMED:
+        return AppColors.tasdiqColor;
+      case IN_COLLECTION:
+        return AppColors.yigColor;
+      case PARTIAL:
+        return AppColors.qismanColor;
+      case READY:
+        return AppColors.tayyorColor;
+      case COMPLETED:
+        return AppColors.yakunColor;
+      case CANCELLED:
+        return AppColors.bekorColor;
     }
   }
 
   Color get lightColor {
     switch (this) {
-      case DRAFT:        return const Color(0xFFDCFCE7);
-      case CONFIRMED:    return const Color(0xFFDBEAFE);
-      case IN_COLLECTION:return AppColors.primaryLight;
-      case PARTIAL:      return const Color(0xFFFEF9C3);
-      case READY:        return const Color(0xFFD1FAE5);
-      case COMPLETED:    return const Color(0xFFF1F5F9);
-      case CANCELLED:    return const Color(0xFFFEE2E2);
+      case DRAFT:
+        return const Color(0xFFDCFCE7);
+      case CONFIRMED:
+        return const Color(0xFFDBEAFE);
+      case IN_COLLECTION:
+        return AppColors.primaryLight;
+      case PARTIAL:
+        return const Color(0xFFFEF9C3);
+      case READY:
+        return const Color(0xFFD1FAE5);
+      case COMPLETED:
+        return const Color(0xFFF1F5F9);
+      case CANCELLED:
+        return const Color(0xFFFEE2E2);
     }
   }
 
@@ -66,13 +100,18 @@ enum OrderStatus {
 }
 
 enum PaymentStatus {
-  PAID, UNPAID;
+  PAID,
+  UNPAID;
+
   String get uzName => this == PAID ? 'To\'langan' : 'To\'lanmagan';
-  Color get color => this == PAID ? AppColors.yangiColor : AppColors.qismanColor;
+  Color get color =>
+      this == PAID ? AppColors.yangiColor : AppColors.qismanColor;
 }
 
 enum ItemStatus {
-  AVAILABLE, BACKORDERED;
+  AVAILABLE,
+  BACKORDERED;
+
   String get uzName => this == AVAILABLE ? 'Mavjud' : 'Kutilmoqda';
 }
 
@@ -114,14 +153,28 @@ class OrderProduct {
     final product = json['product'] as Map<String, dynamic>?;
     final statusRaw = _normalizeEnumString(json['status']);
     final quantity = _parseInt(json['quantity']);
-    
+
     // Parse product name — handle both bilingual { uz, ru } and flat string formats
     String productName = 'Mahsulot';
     if (product != null) {
       final name = product['name'];
       if (name is Map) {
         // Bilingual format: { uz, ru }
-        productName = (name['uz'] as String?) ?? (name['ru'] as String?) ?? 'Mahsulot';
+        String? parseString(dynamic value) {
+          if (value == null) return null;
+          if (value is String) {
+            final trimmed = value.trim();
+            return trimmed.isEmpty ? null : trimmed;
+          }
+          if (value is num) return value.toString();
+          if (value is List && value.isNotEmpty) {
+            return value.first.toString();
+          }
+          return null;
+        }
+
+        productName =
+            parseString(name['uz']) ?? parseString(name['ru']) ?? 'Mahsulot';
       } else if (name is String) {
         // Flat string format
         productName = name;
@@ -129,20 +182,47 @@ class OrderProduct {
     }
     // Fallback to flat field
     if (productName == 'Mahsulot') {
-      final flatName = json['productName'] as String?;
+      String? parseString(dynamic value) {
+        if (value == null) return null;
+        if (value is String) {
+          final trimmed = value.trim();
+          return trimmed.isEmpty ? null : trimmed;
+        }
+        if (value is num) return value.toString();
+        if (value is List && value.isNotEmpty) {
+          return value.first.toString();
+        }
+        return null;
+      }
+
+      final flatName = parseString(json['productName']);
       if (flatName != null && flatName.isNotEmpty) {
         productName = flatName;
       }
     }
-    
+
+    String? parseString(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        final trimmed = value.trim();
+        return trimmed.isEmpty ? null : trimmed;
+      }
+      if (value is num) return value.toString();
+      if (value is List && value.isNotEmpty) {
+        return value.first.toString();
+      }
+      return null;
+    }
+
     return OrderProduct(
-      id: json['id'] as String,
-      productId: product?['id'] as String? ?? json['productId'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
+      productId:
+          parseString(product?['id']) ?? parseString(json['productId']) ?? '',
       productName: productName,
-      productSku: product?['sku'] as String? ?? json['sku'] as String?,
-      imageUrl: product?['imageUrl'] as String?,
+      productSku: parseString(product?['sku']) ?? parseString(json['sku']),
+      imageUrl: parseString(product?['imageUrl']),
       requiredQty: quantity > 0 ? quantity : 1,
-      unit: json['unit'] as String? ?? 'dona',
+      unit: parseString(json['unit']) ?? 'dona',
       backorderedQuantity: json['backorderedQuantity'] != null
           ? _parseInt(json['backorderedQuantity'])
           : null,
@@ -183,9 +263,22 @@ class OrderSummary {
   factory OrderSummary.fromJson(Map<String, dynamic> json) {
     final customer = json['customer'] as Map<String, dynamic>?;
     final sm = json['salesManager'] as Map<String, dynamic>?;
+    String? parseString(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        final trimmed = value.trim();
+        return trimmed.isEmpty ? null : trimmed;
+      }
+      if (value is num) return value.toString();
+      if (value is List && value.isNotEmpty) {
+        return value.first.toString();
+      }
+      return null;
+    }
+
     return OrderSummary(
-      id: json['id'] as String,
-      code: json['code'] as String?,
+      id: json['id']?.toString() ?? '',
+      code: parseString(json['code']),
       status: OrderStatus.values.firstWhere(
         (s) => s.name == _normalizeEnumString(json['status']),
         orElse: () => OrderStatus.DRAFT,
@@ -194,8 +287,10 @@ class OrderSummary {
         (s) => s.name == _normalizeEnumString(json['paymentStatus']),
         orElse: () => PaymentStatus.UNPAID,
       ),
-      customerName: customer?['name'] as String? ?? customer?['companyName'] as String?,
-      salesManagerName: sm?['username'] as String?,
+      customerName:
+          parseString(customer?['name']) ??
+          parseString(customer?['companyName']),
+      salesManagerName: parseString(sm?['username']),
       createdAt: json['createdAt'] is String
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.fromMillisecondsSinceEpoch(_parseInt(json['createdAt'])),
@@ -236,6 +331,19 @@ class OrderDetail extends OrderSummary {
         .map((j) => OrderProduct.fromJson(j as Map<String, dynamic>))
         .toList();
 
+    String? parseString(dynamic value) {
+      if (value == null) return null;
+      if (value is String) {
+        final trimmed = value.trim();
+        return trimmed.isEmpty ? null : trimmed;
+      }
+      if (value is num) return value.toString();
+      if (value is List && value.isNotEmpty) {
+        return value.first.toString();
+      }
+      return null;
+    }
+
     return OrderDetail(
       id: base.id,
       code: base.code,
@@ -246,9 +354,11 @@ class OrderDetail extends OrderSummary {
       createdAt: base.createdAt,
       endDate: base.endDate,
       totalItems: products.length,
-      backorderedCount: products.where((p) => p.status == ItemStatus.BACKORDERED).length,
+      backorderedCount: products
+          .where((p) => p.status == ItemStatus.BACKORDERED)
+          .length,
       products: products,
-      customerPhone: customer?['phone'] as String?,
+      customerPhone: parseString(customer?['phone']),
     );
   }
 }

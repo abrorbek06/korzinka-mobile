@@ -71,8 +71,21 @@ class UsersService {
 
     if (response.statusCode >= 400) {
       final body = jsonDecode(response.body) as Map<String, dynamic>?;
+      String? parseString(dynamic value) {
+        if (value == null) return null;
+        if (value is String) {
+          final trimmed = value.trim();
+          return trimmed.isEmpty ? null : trimmed;
+        }
+        if (value is num) return value.toString();
+        if (value is List && value.isNotEmpty) {
+          return value.first.toString();
+        }
+        return null;
+      }
+
       final message =
-          body?['message'] as String? ??
+          parseString(body?['message']) ??
           'Request failed (${response.statusCode})';
       throw ApiException(message, response.statusCode);
     }

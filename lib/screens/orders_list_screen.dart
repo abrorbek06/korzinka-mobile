@@ -52,7 +52,8 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       _fetchOrders(refresh: false);
     }
   }
@@ -104,7 +105,9 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to load orders: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load orders: $e')));
       }
     } finally {
       if (mounted) {
@@ -139,7 +142,13 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'Filtrlar',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         TextButton(
                           onPressed: () {
                             setModalState(() {
@@ -148,12 +157,18 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                               _selectedPaymentType = null;
                             });
                           },
-                          child: const Text('Reset', style: TextStyle(color: AppTheme.primary)),
+                          child: const Text(
+                            'Tozalash',
+                            style: TextStyle(color: AppTheme.primary),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Text('Order Status', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text(
+                      'Buyurtma holati',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
@@ -166,15 +181,20 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                           selectedColor: s.color.withOpacity(0.3),
                           onSelected: (val) {
                             setModalState(() {
-                              if (val) _selectedStatuses.add(s);
-                              else _selectedStatuses.remove(s);
+                              if (val)
+                                _selectedStatuses.add(s);
+                              else
+                                _selectedStatuses.remove(s);
                             });
                           },
                         );
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Payment Status', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text(
+                      'Toʻlov holati',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
@@ -193,7 +213,10 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Payment Type', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const Text(
+                      'Toʻlov turi',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
@@ -225,7 +248,10 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.w700)),
+                        child: const Text(
+                          'Filtrni qo\'llash',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -246,7 +272,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Orders'),
+        title: const Text('Buyurtmalar'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -265,9 +291,16 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                       controller: _searchController,
                       onChanged: _onSearchChanged,
                       decoration: const InputDecoration(
-                        hintText: 'Search code or customer...',
-                        hintStyle: TextStyle(color: AppTheme.onSurfaceMuted, fontSize: 14),
-                        prefixIcon: Icon(Icons.search, color: AppTheme.onSurfaceMuted, size: 20),
+                        hintText: 'Kod yoki mijozni qidirish...',
+                        hintStyle: TextStyle(
+                          color: AppTheme.onSurfaceMuted,
+                          fontSize: 14,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: AppTheme.onSurfaceMuted,
+                          size: 20,
+                        ),
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -286,8 +319,11 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                   child: IconButton(
                     icon: const Icon(Icons.filter_list, size: 20),
                     onPressed: _showFilterModal,
-                    color: (_selectedStatuses.isNotEmpty || _selectedPaymentStatus != null || _selectedPaymentType != null) 
-                        ? AppTheme.primary 
+                    color:
+                        (_selectedStatuses.isNotEmpty ||
+                            _selectedPaymentStatus != null ||
+                            _selectedPaymentType != null)
+                        ? AppTheme.primary
                         : AppTheme.onSurface,
                   ),
                 ),
@@ -301,21 +337,24 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
         color: AppTheme.primary,
         backgroundColor: AppTheme.surface,
         child: _orders.isEmpty
-            ? (_loading 
-                ? const Center(child: CircularProgressIndicator()) 
-                : ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    children: const [
-                      SizedBox(height: 120),
-                      Center(
-                        child: Text(
-                          'No orders found matching criteria.',
-                          style: TextStyle(color: AppTheme.onSurfaceMuted, fontSize: 15),
+            ? (_loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      children: const [
+                        SizedBox(height: 120),
+                        Center(
+                          child: Text(
+                            'Hech qanday buyurtma topilmadi.',
+                            style: TextStyle(
+                              color: AppTheme.onSurfaceMuted,
+                              fontSize: 15,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  ))
+                      ],
+                    ))
             : ListView.separated(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),

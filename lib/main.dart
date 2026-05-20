@@ -38,7 +38,7 @@ class OrdersKanbanApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Orders Kanban',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.dark,
+        theme: AppTheme.light,
         home: const _AppRoot(),
       ),
     );
@@ -123,11 +123,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.list_alt_outlined),
-            label: 'Orders',
+            label: 'Buyurtmalar',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.inventory_2_outlined),
-            label: 'Items',
+            label: 'Mahsulotlar',
           ),
         ],
       ),

@@ -7,7 +7,10 @@ import '../models/order_model.dart';
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 class AuthService {
-  Future<({String token, PickerUser user})> login(String username, String password) async {
+  Future<({String token, PickerUser user})> login(
+    String username,
+    String password,
+  ) async {
     final res = await http.post(
       Uri.parse('${AppConfig.baseUrl}/auth/login'),
       headers: {'Content-Type': 'application/json'},
@@ -37,9 +40,9 @@ class AuthService {
   }
 
   Map<String, String> _bearer(String t) => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $t',
-      };
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $t',
+  };
 }
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
@@ -49,9 +52,9 @@ class OrdersService {
   OrdersService({required this.token});
 
   Map<String, String> get _h => {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
 
   // Picker only sees their assigned orders
   Future<List<OrderSummary>> getMyOrders() async {
@@ -71,7 +74,9 @@ class OrdersService {
     _check(res);
     final body = jsonDecode(res.body);
     final list = _extractOrderList(body);
-    return list.map((j) => OrderSummary.fromJson(j as Map<String, dynamic>)).toList();
+    return list
+        .map((j) => OrderSummary.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 
   List<dynamic> _extractOrderList(dynamic body) {
@@ -92,7 +97,10 @@ class OrdersService {
   }
 
   Future<OrderDetail> getOrder(String id) async {
-    final res = await http.get(Uri.parse('${AppConfig.baseUrl}/orders/$id'), headers: _h);
+    final res = await http.get(
+      Uri.parse('${AppConfig.baseUrl}/orders/$id'),
+      headers: _h,
+    );
     _check(res);
     return OrderDetail.fromJson(jsonDecode(res.body) as Map<String, dynamic>);
   }
@@ -119,7 +127,22 @@ class OrdersService {
   void _check(http.Response res) {
     if (res.statusCode >= 400) {
       final d = jsonDecode(res.body) as Map<String, dynamic>?;
-      throw AppException(d?['message'] as String? ?? 'Xatolik yuz berdi (${res.statusCode})');
+      String? parseString(dynamic value) {
+        if (value == null) return null;
+        if (value is String) {
+          final trimmed = value.trim();
+          return trimmed.isEmpty ? null : trimmed;
+        }
+        if (value is num) return value.toString();
+        if (value is List && value.isNotEmpty) {
+          return value.first.toString();
+        }
+        return null;
+      }
+
+      throw AppException(
+        parseString(d?['message']) ?? 'Xatolik yuz berdi (${res.statusCode})',
+      );
     }
   }
 }
