@@ -42,7 +42,7 @@ class OrdersService {
       if (salesManagerId != null) 'salesManagerId': salesManagerId,
       if (from != null) 'from': from.toIso8601String(),
       if (to != null) 'to': to.toIso8601String(),
-      if (search != null && search.isNotEmpty) 'search': search,
+      // NOTE: backend does not support `search` on /orders, so we do not send it.
     };
 
     final uri = Uri.parse(

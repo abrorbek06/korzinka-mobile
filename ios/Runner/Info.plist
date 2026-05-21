@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Bu ilovani server bilan aloqa qilish uchun mahalliy tarmoqqa kirish zarur</string>
+	<key>NSBonjourServices</key>
+	<array>
+	  <string>_http._tcp</string>
+	</array>
 </dict>
 </plist>

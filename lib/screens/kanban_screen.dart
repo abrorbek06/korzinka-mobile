@@ -302,17 +302,17 @@ class _KanbanScreenState extends State<KanbanScreen> {
                 _saveHiddenStatuses();
               },
             ),
-          if (orders.error != null)
-            MaterialBanner(
-              content: Text(orders.error!),
-              backgroundColor: const Color(0xFFFEF3C7),
-              actions: [
-                TextButton(
-                  onPressed: orders.clearError,
-                  child: const Text('Yopish'),
-                ),
-              ],
-            ),
+          // if (orders.error != null)
+          //   MaterialBanner(
+          //     content: Text(orders.error!),
+          //     backgroundColor: const Color(0xFFFEF3C7),
+          //     actions: [
+          //       TextButton(
+          //         onPressed: orders.clearError,
+          //         child: const Text('Yopish'),
+          //       ),
+          //     ],
+          //   ),
           Expanded(
             child: orders.loading
                 ? const Center(child: CircularProgressIndicator())

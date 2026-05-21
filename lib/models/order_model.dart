@@ -456,7 +456,12 @@ class OrderListItem {
     final itemsList = resolveItems(json['items'] ?? json['orderItems'] ?? json['order_items']);
     final inferredTotalItems = itemsList is List
         ? itemsList.length
-        : parseInt(json['totalItems']) ?? 0;
+        : parseInt(json['totalItems']) ??
+            parseInt(json['itemsCount']) ??
+            parseInt(json['items_count']) ??
+            parseInt(json['productCount']) ??
+            parseInt(json['product_count']) ??
+            0;
 
     return OrderListItem(
       id: json['id']?.toString() ?? '',

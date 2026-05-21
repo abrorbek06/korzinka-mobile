@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/order_model.dart';
@@ -114,14 +116,14 @@ class _TransitionSheetState extends State<TransitionSheet> {
       final names = _available.map((t) => '${t.from.name}->${t.to.name}').join(', ');
       final msg = 'role=$role available=[$names]';
       debugPrint('[TransitionSheet] $msg');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
+      // if (mounted) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(
+      //       content: Text(msg),
+      //       duration: const Duration(seconds: 4),
+      //     ),
+      //   );
+      // }
     });
   }
 
@@ -160,11 +162,11 @@ class _TransitionSheetState extends State<TransitionSheet> {
     // Debug: show which transition is being submitted and current computed availability
     final submitMsg = 'Submitting transition ${_selected!.from.name}->${_selected!.to.name} for role=${widget.currentUser.role.name}';
     debugPrint('[TransitionSheet] $submitMsg');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(submitMsg), duration: const Duration(seconds: 3)),
-      );
-    }
+    // if (mounted) {
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(content: Text(submitMsg), duration: const Duration(seconds: 3)),
+    //   );
+    // }
     setState(() => _errorMessage = null);
     if (_selected!.requiresPickerId && _selectedPicker == null) {
       _showError('Please select a picker for this transition.');
@@ -309,14 +311,38 @@ class _TransitionSheetState extends State<TransitionSheet> {
     setState(() => _errorMessage = msg);
   }
 
+  double _calculateInitialChildSize() {
+    final transitions = _available.length;
+    final backorderedItems = widget.order.items.length;
+    final arrivedItems = widget.order.items
+        .where((i) => i.status == ItemStatus.BACKORDERED)
+        .length;
+
+    double size = 0.35;
+    size += min(transitions, 3) * 0.05;
+    if (_selected?.requiresPickerId == true) size += 0.08;
+    if (_selected?.requiresTrolleyId == true) size += 0.06;
+    if (_selected?.requiresArrivedItemIds == true) {
+      size += 0.12 + min(arrivedItems, 4) * 0.03;
+    }
+    if (_selected?.requiresBackorderedItems == true) {
+      size += 0.12 + min(backorderedItems, 5) * 0.03;
+    }
+    if (_errorMessage != null) size += 0.05;
+
+    return size.clamp(0.35, 0.92);
+  }
+
   @override
   Widget build(BuildContext context) {
     final transitions = _available;
 
+    final initialSize = _calculateInitialChildSize();
+
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
+      initialChildSize: initialSize,
+      minChildSize: 0.35,
       maxChildSize: 0.92,
       builder: (_, scrollController) => Padding(
         padding: EdgeInsets.only(
@@ -939,14 +965,12 @@ class _TransitionSheetState extends State<TransitionSheet> {
                         ),
                       ),
                     ],
-
-                    const SizedBox(height: 12),
-
-                    // Payment actions
-                    _PaymentActions(
-                      order: widget.order,
-                      currentUser: widget.currentUser,
-                    ),
+                    // const SizedBox(height: 12),
+                    // // Payment actions
+                    // _PaymentActions(
+                    //   order: widget.order,
+                    //   currentUser: widget.currentUser,
+                    // ),
                   ],
                 ),
               ),

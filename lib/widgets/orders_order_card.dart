@@ -3,11 +3,11 @@ import 'package:intl/intl.dart';
 import '../models/order_model.dart';
 import '../theme/app_theme.dart';
 
-class OrderCard extends StatelessWidget {
+class OrdersOrderCard extends StatelessWidget {
   final OrderListItem order;
   final VoidCallback onTap;
 
-  const OrderCard({super.key, required this.order, required this.onTap});
+  const OrdersOrderCard({super.key, required this.order, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -82,22 +82,22 @@ class OrderCard extends StatelessWidget {
                     color: AppTheme.onSurfaceMuted,
                   ),
                 ),
-                // const Spacer(),
-                // Container(
-                //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                //   decoration: BoxDecoration(
-                //     color: order.status.lightColor,
-                //     borderRadius: BorderRadius.circular(10),
-                //   ),
-                //   child: Text(
-                //     order.status.displayName,
-                //     style: TextStyle(
-                //       fontSize: 11,
-                //       fontWeight: FontWeight.w700,
-                //       color: order.status.color,
-                //     ),
-                //   ),
-                // ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: order.status.lightColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    order.status.displayName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: order.status.color,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),

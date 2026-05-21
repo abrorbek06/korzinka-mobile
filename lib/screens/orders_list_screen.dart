@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:korzinkab_mobile/widgets/orders_order_card.dart';
 import 'package:provider/provider.dart';
 import '../models/order_model.dart';
 import '../providers/auth_provider.dart';
@@ -369,7 +370,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                     );
                   }
                   final order = _orders[index];
-                  return OrderCard(
+                  return OrdersOrderCard(
                     order: order,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
