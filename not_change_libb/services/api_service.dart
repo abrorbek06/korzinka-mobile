@@ -117,7 +117,7 @@ class OrdersService {
       body: jsonEncode({
         'nextStatus': nextStatus.name,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
-        if (arrivedItemIds != null) 'arrivedItemIds': arrivedItemIds,
+        'arrivedItemIds': ?arrivedItemIds,
       }),
     );
     _check(res);

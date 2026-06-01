@@ -62,18 +62,22 @@ class Product {
     }
 
     return Product(
-      id: _parseString(json['id'])
-          .isNotEmpty
+      id: _parseString(json['id']).isNotEmpty
           ? _parseString(json['id'])
-          : _parseString(json['productId'])
-              .isNotEmpty
-              ? _parseString(json['productId'])
-              : _parseString(json['sku']),
+          : _parseString(json['productId']).isNotEmpty
+          ? _parseString(json['productId'])
+          : _parseString(json['sku']),
       sku: _parseString(json['sku']),
       name: name,
-      barcode: _parseString(json['barcode']).isNotEmpty ? _parseString(json['barcode']) : null,
-      unit: _parseString(json['unit']).isNotEmpty ? _parseString(json['unit']) : null,
-      brand: _parseString(json['brand']).isNotEmpty ? _parseString(json['brand']) : null,
+      barcode: _parseString(json['barcode']).isNotEmpty
+          ? _parseString(json['barcode'])
+          : null,
+      unit: _parseString(json['unit']).isNotEmpty
+          ? _parseString(json['unit'])
+          : null,
+      brand: _parseString(json['brand']).isNotEmpty
+          ? _parseString(json['brand'])
+          : null,
       price: _parseInt(json['price']),
       isActive: _parseBool(json['isActive'] ?? true),
     );

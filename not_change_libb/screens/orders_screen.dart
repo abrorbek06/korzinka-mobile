@@ -68,8 +68,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: const Icon(Icons.tune_rounded,
-                      size: 18, color: AppColors.textSecondary),
+                  child: const Icon(
+                    Icons.tune_rounded,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -77,7 +80,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ),
       ),
       body: provider.loading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
           : RefreshIndicator(
               onRefresh: provider.loadOrders,
               color: AppColors.primary,
@@ -97,11 +102,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
       sections.add(StatusSectionHeader(status: status, count: list.length));
       for (final order in list) {
         final trolley = provider.getTrolley(order.id);
-        sections.add(OrderListTile(
-          order: order,
-          trolleyCode: trolley,
-          onTap: () => _openDetail(order.id),
-        ));
+        sections.add(
+          OrderListTile(
+            order: order,
+            trolleyCode: trolley,
+            onTap: () => _openDetail(order.id),
+          ),
+        );
       }
     }
 
@@ -118,7 +125,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 color: AppColors.primaryLight,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.inbox_outlined, size: 34, color: AppColors.primary),
+              child: const Icon(
+                Icons.inbox_outlined,
+                size: 34,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -187,7 +198,9 @@ class _FilterChip extends StatelessWidget {
           color: selected ? AppColors.primaryLight : AppColors.background,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? AppColors.primary.withOpacity(0.4) : AppColors.border,
+            color: selected
+                ? AppColors.primary.withOpacity(0.4)
+                : AppColors.border,
           ),
         ),
         child: Row(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-
 class AppColors {
   // Core
   static const Color primary = Color(0xFF5C5FE4);
@@ -18,13 +17,13 @@ class AppColors {
   static const Color textMuted = Color(0xFFBFC2D6);
 
   // Status section headers
-  static const Color yangiColor = Color(0xFF22C55E);   // Yangi - yashil
-  static const Color tasdiqColor = Color(0xFF3B82F6);  // Tasdiqlangan - ko'k
-  static const Color yigColor = Color(0xFF5C5FE4);     // Yig'ilmoqda - binafsha
-  static const Color qismanColor = Color(0xFFF59E0B);  // Qisman - to'q sariq
-  static const Color tayyorColor = Color(0xFF10B981);  // Tayyor - yashil
-  static const Color yakunColor = Color(0xFF6B7280);   // Yakunlangan - kulrang
-  static const Color bekorColor = Color(0xFFEF4444);   // Bekor - qizil
+  static const Color yangiColor = Color(0xFF22C55E); // Yangi - yashil
+  static const Color tasdiqColor = Color(0xFF3B82F6); // Tasdiqlangan - ko'k
+  static const Color yigColor = Color(0xFF5C5FE4); // Yig'ilmoqda - binafsha
+  static const Color qismanColor = Color(0xFFF59E0B); // Qisman - to'q sariq
+  static const Color tayyorColor = Color(0xFF10B981); // Tayyor - yashil
+  static const Color yakunColor = Color(0xFF6B7280); // Yakunlangan - kulrang
+  static const Color bekorColor = Color(0xFFEF4444); // Bekor - qizil
 
   // Item status
   static const Color itemGreen = Color(0xFF22C55E);
@@ -36,7 +35,6 @@ class AppColors {
   static const Color border = Color(0xFFE8E9F4);
   static const Color shadow = Color(0x0A5C5FE4);
 }
-
 
 class AppTheme {
   static const Color _background = Color(0xFFF7F8FC);
@@ -69,7 +67,10 @@ class AppTheme {
       appBarTheme: const AppBarTheme(
         backgroundColor: _surface,
         foregroundColor: _onSurface,
-        elevation: 0,
+        elevation: 10,
+        scrolledUnderElevation: 0,
+        shadowColor: Colors.black12,
+        surfaceTintColor: Colors.transparent,
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: _onSurface,
@@ -104,14 +105,19 @@ class AppTheme {
         ),
         labelStyle: const TextStyle(color: _onSurfaceMuted),
         hintStyle: const TextStyle(color: _onSurfaceMuted),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: _primary,
           foregroundColor: _onPrimary,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           textStyle: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
@@ -125,7 +131,9 @@ class AppTheme {
           foregroundColor: _onSurface,
           side: const BorderSide(color: _border),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
       dividerTheme: const DividerThemeData(color: _border, thickness: 1),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/order_model.dart';
 import '../theme/app_theme.dart';
-import 'status_badge.dart';
 
 class OrderListTile extends StatelessWidget {
   final OrderSummary order;
@@ -83,8 +82,11 @@ class OrderListTile extends StatelessWidget {
                     if (trolleyCode != null)
                       Row(
                         children: [
-                          const Icon(Icons.shopping_cart_outlined,
-                              size: 13, color: AppColors.primary),
+                          const Icon(
+                            Icons.shopping_cart_outlined,
+                            size: 13,
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             'Arava: $trolleyCode',
@@ -101,8 +103,11 @@ class OrderListTile extends StatelessWidget {
                         order.status == OrderStatus.PARTIAL)
                       Row(
                         children: [
-                          const Icon(Icons.add_shopping_cart,
-                              size: 13, color: AppColors.textMuted),
+                          const Icon(
+                            Icons.add_shopping_cart,
+                            size: 13,
+                            color: AppColors.textMuted,
+                          ),
                           const SizedBox(width: 4),
                           const Text(
                             'Arava tayinlanmagan',
@@ -133,7 +138,10 @@ class OrderListTile extends StatelessWidget {
                         if (order.backorderedCount > 0) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.qismanColor.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(4),

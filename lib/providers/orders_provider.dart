@@ -222,12 +222,14 @@ class OrdersProvider extends ChangeNotifier {
   Future<bool> updateDetails({
     required String orderId,
     String? trolleyId,
+    bool clearTrolley = false,
     DateTime? endDate,
   }) async {
     try {
       final updated = await _ordersService.updateDetails(
         orderId: orderId,
         trolleyId: trolleyId,
+        clearTrolley: clearTrolley,
         endDate: endDate,
       );
       _updateInColumns(updated);
@@ -238,6 +240,59 @@ class OrdersProvider extends ChangeNotifier {
       _error = e.toString();
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<bool> attachCart({
+    required String orderId,
+    required String cartId,
+  }) async {
+    try {
+      final updated = await _ordersService.attachCart(
+        orderId: orderId,
+        cartId: cartId,
+      );
+      _updateInColumns(updated);
+      await _loadAuditLogs(orderId);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> detachCart({
+    required String orderId,
+    required String cartId,
+  }) async {
+    try {
+      final updated = await _ordersService.detachCart(
+        orderId: orderId,
+        cartId: cartId,
+      );
+      _updateInColumns(updated);
+      await _loadAuditLogs(orderId);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAvailableCarts({
+    String? branchId,
+  }) async {
+    try {
+      final raw = await _ordersService.getAvailableCarts(branchId: branchId);
+      return raw;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return [];
     }
   }
 

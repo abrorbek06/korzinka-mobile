@@ -43,10 +43,8 @@ class _ItemsScreenState extends State<ItemsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Items'),
-      ),
+      backgroundColor: AppTheme.surface,
+      appBar: AppBar(title: const Text('Items'), backgroundColor: AppTheme.surface),
       body: RefreshIndicator(
         onRefresh: _refreshProducts,
         color: AppTheme.primary,
@@ -58,11 +56,16 @@ class _ItemsScreenState extends State<ItemsScreen> {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              final message = snapshot.error is Exception ? snapshot.error.toString() : 'Failed to load products';
+              final message = snapshot.error is Exception
+                  ? snapshot.error.toString()
+                  : 'Failed to load products';
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  Text(message, style: const TextStyle(color: Colors.redAccent)),
+                  Text(
+                    message,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
                 ],
               );
             }
@@ -75,7 +78,10 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   Center(
                     child: Text(
                       'No products found.',
-                      style: TextStyle(color: AppTheme.onSurfaceMuted, fontSize: 16),
+                      style: TextStyle(
+                        color: AppTheme.onSurfaceMuted,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ],
@@ -94,14 +100,22 @@ class _ItemsScreenState extends State<ItemsScreen> {
                     border: Border.all(color: AppTheme.border),
                   ),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    title: Text(
+                      product.name,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (product.sku.isNotEmpty) Text('SKU: ${product.sku}'),
-                        if (product.brand != null && product.brand!.isNotEmpty) Text('Brand: ${product.brand}'),
-                        if (product.unit != null && product.unit!.isNotEmpty) Text('Unit: ${product.unit}'),
+                        if (product.brand != null && product.brand!.isNotEmpty)
+                          Text('Brand: ${product.brand}'),
+                        if (product.unit != null && product.unit!.isNotEmpty)
+                          Text('Unit: ${product.unit}'),
                       ],
                     ),
                     trailing: Column(
@@ -109,9 +123,20 @@ class _ItemsScreenState extends State<ItemsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         if (product.price != null)
-                          Text('UZS ${product.price}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                          Text(
+                            'UZS ${product.price}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
                         const SizedBox(height: 4),
-                        Text(product.isActive ? 'Active' : 'Inactive', style: TextStyle(color: product.isActive ? AppTheme.primary : AppTheme.onSurfaceMuted, fontSize: 12)),
+                        Text(
+                          product.isActive ? 'Active' : 'Inactive',
+                          style: TextStyle(
+                            color: product.isActive
+                                ? AppTheme.primary
+                                : AppTheme.onSurfaceMuted,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),

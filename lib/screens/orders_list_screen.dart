@@ -7,11 +7,14 @@ import '../providers/auth_provider.dart';
 import '../providers/orders_provider.dart';
 import '../services/orders_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/order_card.dart';
+import '../utils/snackbar_utils.dart';
 import 'order_detail_screen.dart';
 
 class OrdersListScreen extends StatefulWidget {
-  const OrdersListScreen({super.key});
+  final void Function(OrderListItem, OrderStatus)? onStatusSelected;
+  final void Function(OrderListItem, OrderStatus)? onOrderDrop;
+
+  const OrdersListScreen({super.key, this.onStatusSelected, this.onOrderDrop});
 
   @override
   State<OrdersListScreen> createState() => _OrdersListScreenState();
@@ -106,9 +109,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load orders: $e')));
+        context.showTopSnackBar(Text('Failed to load orders: $e'));
       }
     } finally {
       if (mounted) {
@@ -118,6 +119,11 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
   }
 
   void _showFilterModal() {
+    // Use local copies so modal changes are staged and applied only on Save
+    final localSelectedStatuses = List<OrderStatus>.from(_selectedStatuses);
+    PaymentStatus? localSelectedPaymentStatus = _selectedPaymentStatus;
+    PaymentType? localSelectedPaymentType = _selectedPaymentType;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -153,9 +159,9 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                         TextButton(
                           onPressed: () {
                             setModalState(() {
-                              _selectedStatuses.clear();
-                              _selectedPaymentStatus = null;
-                              _selectedPaymentType = null;
+                              localSelectedStatuses.clear();
+                              localSelectedPaymentStatus = null;
+                              localSelectedPaymentType = null;
                             });
                           },
                           child: const Text(
@@ -175,17 +181,22 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: OrderStatus.values.map((s) {
-                        final selected = _selectedStatuses.contains(s);
+                        final selected = localSelectedStatuses.contains(s);
                         return ChoiceChip(
                           label: Text(s.displayName),
                           selected: selected,
-                          selectedColor: s.color.withOpacity(0.3),
+                          backgroundColor: s.color.withOpacity(0.3),
+                          selectedColor: s.color,
+                          labelStyle: TextStyle(
+                            color: selected ? Colors.white : AppTheme.onSurface,
+                          ),
                           onSelected: (val) {
                             setModalState(() {
-                              if (val)
-                                _selectedStatuses.add(s);
-                              else
-                                _selectedStatuses.remove(s);
+                              if (val) {
+                                localSelectedStatuses.add(s);
+                              } else {
+                                localSelectedStatuses.remove(s);
+                              }
                             });
                           },
                         );
@@ -200,14 +211,18 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                     Wrap(
                       spacing: 8,
                       children: PaymentStatus.values.map((s) {
-                        final selected = _selectedPaymentStatus == s;
+                        final selected = localSelectedPaymentStatus == s;
                         return ChoiceChip(
                           label: Text(s.displayName),
                           selected: selected,
-                          selectedColor: s.color.withOpacity(0.3),
+                          backgroundColor: s.color.withOpacity(0.3),
+                          selectedColor: s.color,
+                          labelStyle: TextStyle(
+                            color: selected ? Colors.white : AppTheme.onSurface,
+                          ),
                           onSelected: (val) {
                             setModalState(() {
-                              _selectedPaymentStatus = val ? s : null;
+                              localSelectedPaymentStatus = val ? s : null;
                             });
                           },
                         );
@@ -222,14 +237,23 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                     Wrap(
                       spacing: 8,
                       children: PaymentType.values.map((t) {
-                        final selected = _selectedPaymentType == t;
+                        final selected = localSelectedPaymentType == t;
                         return ChoiceChip(
                           label: Text(t.displayName),
                           selected: selected,
-                          selectedColor: AppTheme.primary.withOpacity(0.3),
+                          backgroundColor: const Color.fromARGB(
+                            255,
+                            173,
+                            170,
+                            194,
+                          ).withOpacity(0.3),
+                          selectedColor: AppTheme.primary,
+                          labelStyle: TextStyle(
+                            color: selected ? Colors.white : AppTheme.onSurface,
+                          ),
                           onSelected: (val) {
                             setModalState(() {
-                              _selectedPaymentType = val ? t : null;
+                              localSelectedPaymentType = val ? t : null;
                             });
                           },
                         );
@@ -240,8 +264,15 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
+                          // Commit staged selections to parent state
+                          setState(() {
+                            _selectedStatuses = List<OrderStatus>.from(
+                              localSelectedStatuses,
+                            );
+                            _selectedPaymentStatus = localSelectedPaymentStatus;
+                            _selectedPaymentType = localSelectedPaymentType;
+                          });
                           Navigator.pop(context);
-                          setState(() {});
                           _fetchOrders(refresh: true);
                         },
                         style: ElevatedButton.styleFrom(
@@ -271,7 +302,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
     final ordersProvider = context.watch<OrdersProvider>();
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.surface,
       appBar: AppBar(
         title: const Text('Buyurtmalar'),
         bottom: PreferredSize(
@@ -281,32 +312,28 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceVariant,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppTheme.border),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: _onSearchChanged,
-                      decoration: const InputDecoration(
-                        hintText: 'Kod yoki mijozni qidirish...',
-                        hintStyle: TextStyle(
-                          color: AppTheme.onSurfaceMuted,
-                          fontSize: 14,
-                        ),
-                        prefixIcon: Icon(
-                          Icons.search,
-                          color: AppTheme.onSurfaceMuted,
-                          size: 20,
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: _onSearchChanged,
+                    decoration: const InputDecoration(
+                      hintText: 'Kod yoki mijozni qidirish...',
+                      hintStyle: TextStyle(
+                        color: AppTheme.onSurfaceMuted,
+                        fontSize: 14,
                       ),
-                      style: const TextStyle(fontSize: 14),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: AppTheme.primary),
+                        borderRadius: BorderRadius.all(Radius.circular(10)),
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: AppTheme.onSurfaceMuted,
+                        size: 20,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
                     ),
+                    style: const TextStyle(fontSize: 14),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -361,7 +388,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 itemCount: _orders.length + (_hasMore ? 1 : 0),
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   if (index == _orders.length) {
                     return const Padding(
@@ -372,6 +399,10 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                   final order = _orders[index];
                   return OrdersOrderCard(
                     order: order,
+                    onStatusSelected: widget.onStatusSelected == null
+                        ? null
+                        : (targetStatus) =>
+                              widget.onStatusSelected!(order, targetStatus),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => ChangeNotifierProvider.value(

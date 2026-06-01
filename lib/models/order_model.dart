@@ -385,6 +385,22 @@ class Picker {
   }
 }
 
+class Cart {
+  final String id;
+  final String code;
+  final String? name;
+
+  const Cart({required this.id, required this.code, this.name});
+
+  factory Cart.fromJson(Map<String, dynamic> json) {
+    String id = json['id']?.toString() ?? json['cartId']?.toString() ?? '';
+    String code =
+        json['code']?.toString() ?? json['cartNumber']?.toString() ?? id;
+    String? name = json['name']?.toString();
+    return Cart(id: id, code: code, name: name);
+  }
+}
+
 /// Trimmed DTO used in the Kanban feed
 class OrderListItem {
   final String id;
@@ -434,34 +450,14 @@ class OrderListItem {
     final branch = json['branch'] as Map<String, dynamic>?;
     final salesManager = json['salesManager'] as Map<String, dynamic>?;
     final picker = json['picker'] as Map<String, dynamic>?;
-
-    int? parseInt(dynamic value) {
-      if (value == null) return null;
-      if (value is int) return value;
-      if (value is num) return value.toInt();
-      if (value is String) {
-        return int.tryParse(value) ?? double.tryParse(value)?.toInt();
-      }
-      return null;
-    }
-
-    dynamic resolveItems(dynamic raw) {
-      if (raw is List) return raw;
-      if (raw is Map<String, dynamic>) {
-        return raw['data'] ?? raw['items'] ?? raw['orderItems'] ?? raw['order_items'];
-      }
-      return null;
-    }
-
-    final itemsList = resolveItems(json['items'] ?? json['orderItems'] ?? json['order_items']);
-    final inferredTotalItems = itemsList is List
-        ? itemsList.length
-        : parseInt(json['totalItems']) ??
-            parseInt(json['itemsCount']) ??
-            parseInt(json['items_count']) ??
-            parseInt(json['productCount']) ??
-            parseInt(json['product_count']) ??
-            0;
+    // If the API included an inline items list in the list response, use its
+    // length as the totalItems value. This covers servers that omit
+    // `totalItems` but include `items`/`orderItems` inline.
+    final itemsList =
+        json['items'] ?? json['orderItems'] ?? json['order_items'];
+    final inferredTotalItems = (itemsList is List)
+        ? (itemsList.length)
+        : (json['totalItems'] as int? ?? 0);
 
     return OrderListItem(
       id: json['id']?.toString() ?? '',
@@ -503,6 +499,7 @@ class OrderDetail extends OrderListItem {
   final Customer? customer;
   final Picker? picker;
   final DateTime? completedAt;
+  final List<Cart> carts;
 
   const OrderDetail({
     required super.id,
@@ -528,6 +525,7 @@ class OrderDetail extends OrderListItem {
     this.customer,
     this.picker,
     this.completedAt,
+    this.carts = const [],
   });
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) {
@@ -535,19 +533,10 @@ class OrderDetail extends OrderListItem {
     final branch = json['branch'] as Map<String, dynamic>?;
     final salesManager = json['salesManager'] as Map<String, dynamic>?;
     final picker = json['picker'] as Map<String, dynamic>?;
-
-    dynamic resolveItems(dynamic raw) {
-      if (raw is List) return raw;
-      if (raw is Map<String, dynamic>) {
-        return raw['data'] ?? raw['items'] ?? raw['orderItems'] ?? raw['order_items'];
-      }
-      return null;
-    }
-
-    final itemsList = resolveItems(
-      json['items'] ?? json['orderItems'] ?? json['order_items'],
-    );
-    final items = (itemsList as List<dynamic>?)
+    final itemsList =
+        json['items'] ?? json['orderItems'] ?? json['order_items'];
+    final items =
+        (itemsList as List<dynamic>?)
             ?.map((i) => OrderItem.fromJson(i as Map<String, dynamic>))
             .toList() ??
         [];
@@ -595,6 +584,12 @@ class OrderDetail extends OrderListItem {
       items: items,
       customer: customer != null ? Customer.fromJson(customer) : null,
       picker: picker != null ? Picker.fromJson(picker) : null,
+      carts:
+          ((json['carts'] ?? json['trolleys'] ?? json['orderCarts'])
+                  as List<dynamic>?)
+              ?.map((c) => Cart.fromJson(c as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 }
@@ -671,7 +666,7 @@ const List<TransitionDefinition> kTransitionRules = [
   TransitionDefinition(
     from: OrderStatus.PARTIAL,
     to: OrderStatus.IN_COLLECTION,
-    roles: ['ADMIN', 'STORE_MANAGER', 'SALES_MANAGER'],
+    roles: ['ADMIN', 'STORE_MANAGER', 'SALES_MANAGER', 'PICKER'],
   ),
   TransitionDefinition(
     from: OrderStatus.PARTIAL,
@@ -687,7 +682,7 @@ const List<TransitionDefinition> kTransitionRules = [
   TransitionDefinition(
     from: OrderStatus.READY,
     to: OrderStatus.IN_COLLECTION,
-    roles: ['ADMIN', 'STORE_MANAGER', 'SALES_MANAGER'],
+    roles: ['ADMIN', 'STORE_MANAGER', 'SALES_MANAGER', 'PICKER'],
   ),
   TransitionDefinition(
     from: OrderStatus.READY,

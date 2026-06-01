@@ -31,7 +31,10 @@ enum UserRole {
   bool get canCreateOrders => this != PICKER && this != BASIC;
 
   bool get canManageTransitions =>
-      this == ADMIN || this == STORE_MANAGER || this == SALES_MANAGER || this == SCM;
+      this == ADMIN ||
+      this == STORE_MANAGER ||
+      this == SALES_MANAGER ||
+      this == SCM;
 }
 
 class AuthenticatedUser {
@@ -75,13 +78,13 @@ class AuthenticatedUser {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'username': username,
-        'email': email,
-        'role': role.name,
-        'isActive': isActive,
-        'branchId': branchId,
-      };
+    'id': id,
+    'username': username,
+    'email': email,
+    'role': role.name,
+    'isActive': isActive,
+    'branchId': branchId,
+  };
 
   String toJsonString() => jsonEncode(toJson());
 

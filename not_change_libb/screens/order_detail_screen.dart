@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../../lib/utils/snackbar_utils.dart';
 import '../config/constants.dart';
 import '../models/order_model.dart';
 import '../providers/picker_provider.dart';
@@ -47,7 +48,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
       return Scaffold(
         backgroundColor: AppColors.background,
         appBar: AppBar(backgroundColor: AppColors.surface),
-        body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
       );
     }
 
@@ -132,10 +135,7 @@ class _OrderMeta extends StatelessWidget {
             value: order.customerName ?? '—',
           ),
           const SizedBox(height: 10),
-          _MetaRow(
-            label: AppStrings.date,
-            value: fmt.format(order.createdAt),
-          ),
+          _MetaRow(label: AppStrings.date, value: fmt.format(order.createdAt)),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -246,8 +246,13 @@ class _ProductsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     if (order.products.isEmpty) {
       return Center(
-        child: Text(AppStrings.noProducts,
-            style: const TextStyle(color: AppColors.textSecondary, fontFamily: 'Nunito')),
+        child: Text(
+          AppStrings.noProducts,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontFamily: 'Nunito',
+          ),
+        ),
       );
     }
     return Container(
@@ -270,7 +275,10 @@ class _CommentsTab extends StatelessWidget {
     return Center(
       child: Text(
         AppStrings.noItems,
-        style: const TextStyle(color: AppColors.textSecondary, fontFamily: 'Nunito'),
+        style: const TextStyle(
+          color: AppColors.textSecondary,
+          fontFamily: 'Nunito',
+        ),
       ),
     );
   }
@@ -301,7 +309,11 @@ class _BottomActionState extends State<_BottomAction> {
 
     return Container(
       padding: EdgeInsets.fromLTRB(
-          16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
+        16,
+        12,
+        16,
+        MediaQuery.of(context).padding.bottom + 12,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         boxShadow: [AppTheme.bottomBarShadow],
@@ -358,7 +370,9 @@ class _BottomActionState extends State<_BottomAction> {
                       width: 22,
                       height: 22,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white),
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -367,7 +381,10 @@ class _BottomActionState extends State<_BottomAction> {
                           _canMarkReady
                               ? AppStrings.changeStatus
                               : widget.order.status.uzName,
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         if (_canMarkReady) ...[
                           const SizedBox(width: 8),
@@ -387,10 +404,8 @@ class _BottomActionState extends State<_BottomAction> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => _StatusChangeSheet(
-        order: widget.order,
-        onConfirm: _doTransition,
-      ),
+      builder: (_) =>
+          _StatusChangeSheet(order: widget.order, onConfirm: _doTransition),
     );
   }
 
@@ -401,28 +416,15 @@ class _BottomActionState extends State<_BottomAction> {
     final ok = await provider.markReady(notes: notes);
     setState(() => _loading = false);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error ?? 'Xatolik yuz berdi'),
-          backgroundColor: AppColors.bekorColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
+      context.showTopSnackBar(
+        Text(provider.error ?? 'Xatolik yuz berdi'),
+        backgroundColor: AppColors.bekorColor,
       );
       provider.clearError();
     } else if (ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 18),
-            SizedBox(width: 8),
-            Text('Buyurtma tayyor deb belgilandi!',
-                style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w600)),
-          ]),
-          backgroundColor: AppColors.yangiColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
+      context.showTopMessage(
+        'Buyurtma tayyor deb belgilandi!',
+        backgroundColor: AppColors.yangiColor,
       );
     }
   }
@@ -455,7 +457,9 @@ class _StatusChangeSheetState extends State<_StatusChangeSheet> {
     final allDone = provider.allCollected;
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
         child: Column(
@@ -484,16 +488,21 @@ class _StatusChangeSheetState extends State<_StatusChangeSheet> {
                     color: AppColors.tayyorColor.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.inventory_2_outlined,
-                      size: 22, color: AppColors.tayyorColor),
+                  child: Icon(
+                    Icons.inventory_2_outlined,
+                    size: 22,
+                    color: AppColors.tayyorColor,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(AppStrings.readyTitle,
-                          style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        AppStrings.readyTitle,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
                       Text(
                         '${widget.order.code} → Tayyor',
                         style: Theme.of(context).textTheme.bodySmall,
@@ -512,11 +521,17 @@ class _StatusChangeSheetState extends State<_StatusChangeSheet> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFFEF9C3),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.qismanColor.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppColors.qismanColor.withOpacity(0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: AppColors.qismanColor, size: 18),
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: AppColors.qismanColor,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -558,10 +573,16 @@ class _StatusChangeSheetState extends State<_StatusChangeSheet> {
                       side: const BorderSide(color: AppColors.border),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text(AppStrings.cancel,
-                        style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      AppStrings.cancel,
+                      style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -569,15 +590,24 @@ class _StatusChangeSheetState extends State<_StatusChangeSheet> {
                   flex: 2,
                   child: ElevatedButton(
                     onPressed: () => widget.onConfirm(
-                        _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim()),
+                      _notesCtrl.text.trim().isEmpty
+                          ? null
+                          : _notesCtrl.text.trim(),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.tayyorColor,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: const Text(AppStrings.yes,
-                        style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      AppStrings.yes,
+                      style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
-import 'config/app_config.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:flutter/services.dart';
+import 'package:korzinkab_mobile/screens/items_screen.dart';
+import 'package:korzinkab_mobile/utils/app_keys.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/orders_provider.dart';
+import 'providers/notifications_provider.dart';
+import 'services/notification_service.dart';
 import 'screens/login_screen.dart';
-import 'screens/items_screen.dart';
+import 'screens/notifications_screen.dart';
 import 'screens/kanban_screen.dart';
 import 'screens/orders_list_screen.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize notification service (Firebase Messaging + local notifications)
+  try {
+    await NotificationService.initialize();
+  } catch (_) {}
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -32,13 +40,17 @@ class OrdersKanbanApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()..tryRestoreSession()),
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider()..tryRestoreSession(),
+        ),
         ChangeNotifierProvider(create: (_) => OrdersProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationsProvider()),
       ],
       child: MaterialApp(
         title: 'Orders Kanban',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
+        scaffoldMessengerKey: AppKeys.scaffoldMessengerKey,
         home: const _AppRoot(),
       ),
     );
@@ -54,6 +66,7 @@ class _AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<_AppRoot> {
   bool _ordersInitialized = false;
+  bool _notificationsInitialized = false;
 
   @override
   Widget build(BuildContext context) {
@@ -66,14 +79,23 @@ class _AppRootState extends State<_AppRoot> {
 
       case AuthState.unauthenticated:
         _ordersInitialized = false;
+        _notificationsInitialized = false;
         return const LoginScreen();
 
       case AuthState.authenticated:
         final orders = context.read<OrdersProvider>();
-        if (!_ordersInitialized) {
+        final notifications = context.read<NotificationsProvider>();
+        // Provide the server auth token to the notification service so it can register the device
+        try {
+          NotificationService.instance.setAuthToken(auth.token);
+        } catch (_) {}
+
+        if (!_ordersInitialized || !_notificationsInitialized) {
           _ordersInitialized = true;
+          _notificationsInitialized = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             orders.init(auth.token!);
+            notifications.init(auth.token!);
           });
         }
         return const HomeScreen();
@@ -94,7 +116,8 @@ class _HomeScreenState extends State<HomeScreen> {
   static const List<Widget> _pages = [
     KanbanScreen(),
     OrdersListScreen(),
-    ItemsScreen(),
+    // ItemsScreen(),
+    NotificationsScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -105,30 +128,112 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final unreadCount = context.watch<NotificationsProvider>().unreadCount;
+
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         backgroundColor: AppTheme.surface,
         selectedItemColor: AppTheme.primary,
         unselectedItemColor: AppTheme.onSurfaceMuted,
-        items: const [
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.view_kanban_outlined),
+            icon: SvgPicture.asset(
+              'assets/icons/apps.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                AppTheme.onSurfaceMuted,
+                BlendMode.srcIn,
+              ),
+            ),
+            activeIcon: SvgPicture.asset(
+              'assets/icons/apps.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(AppTheme.primary, BlendMode.srcIn),
+            ),
             label: 'Kanban',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt_outlined),
+            icon: SvgPicture.asset(
+              'assets/icons/list.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                AppTheme.onSurfaceMuted,
+                BlendMode.srcIn,
+              ),
+            ),
+            activeIcon: SvgPicture.asset(
+              'assets/icons/list.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(AppTheme.primary, BlendMode.srcIn),
+            ),
             label: 'Buyurtmalar',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined),
-            label: 'Mahsulotlar',
+            icon: _buildNotificationIcon(
+              color: AppTheme.onSurfaceMuted,
+              badgeCount: unreadCount,
+            ),
+            activeIcon: _buildNotificationIcon(
+              color: AppTheme.primary,
+              badgeCount: unreadCount,
+            ),
+            label: 'Bildirishnomalar',
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationIcon({
+    required Color color,
+    required int badgeCount,
+  }) {
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Center(
+            child: SvgPicture.asset(
+              'assets/icons/bell.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+            ),
+          ),
+          if (badgeCount > 0)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.surface, width: 1.5),
+                ),
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                child: Text(
+                  badgeCount > 99 ? '99+' : badgeCount.toString(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -153,10 +258,10 @@ class _SplashScreen extends StatelessWidget {
                 color: AppTheme.primary,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
-                Icons.view_kanban_outlined,
-                color: Color(0xFF0F1923),
-                size: 34,
+              child: SvgPicture.asset(
+                'assets/icons/splash.svg',
+                width: 34,
+                height: 34,
               ),
             ),
             const SizedBox(height: 20),

@@ -16,6 +16,20 @@ class OrdersService {
     'Authorization': 'Bearer $token',
   };
 
+  String _mapPaymentType(PaymentType t) {
+    switch (t) {
+      case PaymentType.CASH:
+        return 'cash';
+      case PaymentType.CARD:
+        return 'card';
+      case PaymentType.BANK:
+      default:
+        // Backend expects bank_prepayment or bank_post_payment;
+        // pick bank_prepayment as the default filter token for "bank".
+        return 'bank_prepayment';
+    }
+  }
+
   // ─── List / Kanban feed ────────────────────────────────────────────────────
 
   Future<({List<OrderListItem> items, int total, int page})> getOrders({
@@ -37,12 +51,15 @@ class OrdersService {
       if (statuses != null && statuses.isNotEmpty)
         // Backend expects lowercase snake_case status names, e.g. 'in_collection'
         'statuses': statuses.map((s) => s.name.toLowerCase()).join(','),
-      if (branchId != null) 'branchId': branchId,
-      if (customerId != null) 'customerId': customerId,
-      if (salesManagerId != null) 'salesManagerId': salesManagerId,
+      'branchId': ?branchId,
+      'customerId': ?customerId,
+      'salesManagerId': ?salesManagerId,
       if (from != null) 'from': from.toIso8601String(),
       if (to != null) 'to': to.toIso8601String(),
-      // NOTE: backend does not support `search` on /orders, so we do not send it.
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (paymentStatus != null)
+        'paymentStatus': paymentStatus.name.toLowerCase(),
+      if (paymentType != null) 'paymentType': _mapPaymentType(paymentType),
     };
 
     final uri = Uri.parse(
@@ -195,10 +212,10 @@ class OrdersService {
   }) async {
     final body = <String, dynamic>{
       'nextStatus': nextStatus.name.toLowerCase(),
-      if (pickerId != null) 'pickerId': pickerId,
-      if (trolleyId != null) 'trolleyId': trolleyId,
-      if (backorderedItems != null) 'backorderedItems': backorderedItems,
-      if (arrivedItemIds != null) 'arrivedItemIds': arrivedItemIds,
+      'pickerId': ?pickerId,
+      'trolleyId': ?trolleyId,
+      'backorderedItems': ?backorderedItems,
+      'arrivedItemIds': ?arrivedItemIds,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
 
@@ -209,11 +226,7 @@ class OrdersService {
       print('[OrdersService] POST $uri');
       print('[OrdersService] request body: $bodyJson');
       response = await http
-          .post(
-            uri,
-            headers: _headers,
-            body: bodyJson,
-          )
+          .post(uri, headers: _headers, body: bodyJson)
           .timeout(const Duration(seconds: 10));
       print('[OrdersService] response status: ${response.statusCode}');
       print('[OrdersService] response body: ${response.body}');
@@ -261,10 +274,13 @@ class OrdersService {
   Future<OrderDetail> updateDetails({
     required String orderId,
     String? trolleyId,
+    bool clearTrolley = false,
     DateTime? endDate,
   }) async {
     final body = <String, dynamic>{
-      if (trolleyId != null) 'trolleyId': trolleyId,
+      if (clearTrolley)
+        'trolleyId': null
+      else 'trolleyId': ?trolleyId,
       if (endDate != null) 'endDate': endDate.toIso8601String(),
     };
     late http.Response response;
@@ -283,6 +299,74 @@ class OrdersService {
     return _parseOrderDetailResponse(response.body, response.statusCode);
   }
 
+  /// Attach a cart to the order (logistics attach, order must be IN_COLLECTION)
+  Future<OrderDetail> attachCart({
+    required String orderId,
+    required String cartId,
+  }) async {
+    final body = jsonEncode({'cartId': cartId});
+    late http.Response response;
+    try {
+      final uri = Uri.parse('$_baseUrl/orders/$orderId/carts');
+      response = await http
+          .post(uri, headers: _headers, body: body)
+          .timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (_) {
+      throw ApiException('Request timed out', 504);
+    }
+    _checkStatus(response);
+    return _parseOrderDetailResponse(response.body, response.statusCode);
+  }
+
+  /// Detach a cart from the order
+  Future<OrderDetail> detachCart({
+    required String orderId,
+    required String cartId,
+  }) async {
+    late http.Response response;
+    try {
+      final uri = Uri.parse('$_baseUrl/orders/$orderId/carts/$cartId');
+      response = await http
+          .delete(uri, headers: _headers)
+          .timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (_) {
+      throw ApiException('Request timed out', 504);
+    }
+    _checkStatus(response);
+    return _parseOrderDetailResponse(response.body, response.statusCode);
+  }
+
+  /// Fetch available carts for a branch (availability=available)
+  Future<List<Map<String, dynamic>>> getAvailableCarts({
+    String? branchId,
+  }) async {
+    final query = <String, String>{
+      'branchId': ?branchId,
+      'availability': 'available',
+    };
+    final uri = Uri.parse('$_baseUrl/carts').replace(queryParameters: query);
+    late http.Response response;
+    try {
+      response = await http
+          .get(uri, headers: _headers)
+          .timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (_) {
+      throw ApiException('Request timed out', 504);
+    }
+    _checkStatus(response);
+    final decoded = jsonDecode(response.body);
+    if (decoded is List<dynamic>) {
+      return decoded.cast<Map<String, dynamic>>();
+    }
+    if (decoded is Map<String, dynamic>) {
+      final data =
+          decoded['data'] as List<dynamic>? ??
+          decoded['items'] as List<dynamic>?;
+      if (data != null) return data.cast<Map<String, dynamic>>();
+    }
+    return [];
+  }
+
   Future<OrderDetail> updateItem({
     required String orderId,
     required String itemId,
@@ -291,8 +375,8 @@ class OrdersService {
     double? backorderedQuantity,
   }) async {
     final body = <String, dynamic>{
-      if (quantity != null) 'quantity': quantity,
-      if (status != null) 'status': status,
+      'quantity': ?quantity,
+      'status': ?status,
       if (backorderedQuantity != null)
         'backorderedQuantity': backorderedQuantity.toInt().toString(),
     };
@@ -320,7 +404,8 @@ class OrdersService {
       if (msgVal is List) {
         message = msgVal.join(', ');
       } else {
-        message = msgVal?.toString() ?? 'Request failed (${response.statusCode})';
+        message =
+            msgVal?.toString() ?? 'Request failed (${response.statusCode})';
       }
       throw ApiException(message, response.statusCode);
     }

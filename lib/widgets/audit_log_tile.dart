@@ -67,11 +67,18 @@ class AuditLogTile extends StatelessWidget {
                   Row(
                     children: [
                       if (log.performedByName != null) ...[
-                        Icon(Icons.person_outline, size: 12, color: AppTheme.onSurfaceMuted),
+                        Icon(
+                          Icons.person_outline,
+                          size: 12,
+                          color: AppTheme.onSurfaceMuted,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           log.performedByName!,
-                          style: const TextStyle(fontSize: 11, color: AppTheme.onSurfaceMuted),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppTheme.onSurfaceMuted,
+                          ),
                         ),
                         Container(
                           margin: const EdgeInsets.symmetric(horizontal: 6),
@@ -85,7 +92,10 @@ class AuditLogTile extends StatelessWidget {
                       ],
                       Text(
                         DateFormat('dd MMM yyyy, HH:mm').format(log.createdAt),
-                        style: const TextStyle(fontSize: 11, color: AppTheme.onSurfaceMuted),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.onSurfaceMuted,
+                        ),
                       ),
                     ],
                   ),
@@ -94,7 +104,10 @@ class AuditLogTile extends StatelessWidget {
                   if (log.notes != null && log.notes!.isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.background,
                         borderRadius: BorderRadius.circular(6),
@@ -122,7 +135,9 @@ class AuditLogTile extends StatelessWidget {
   Color _dotColor() {
     if (log.toStatus != null) {
       try {
-        return OrderStatus.values.firstWhere((s) => s.name == log.toStatus).color;
+        return OrderStatus.values
+            .firstWhere((s) => s.name == log.toStatus)
+            .color;
       } catch (_) {}
     }
     return AppTheme.primary;

@@ -1,6 +1,5 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/order_model.dart';
 import '../models/user_model.dart';
@@ -63,19 +62,49 @@ class _TransitionSheetState extends State<TransitionSheet> {
       widget.currentUser.role.name,
     );
 
-    // If nothing is available via the static map, and the current user is
-    // a picker, merge-in any transitions that explicitly list PICKER as a
-    // role for this from-status. This allows the assigned picker to act
-    // on picker-scoped transitions (e.g. IN_COLLECTION -> PARTIAL) even
-    // if other role checks differ elsewhere.
-    if (base.isEmpty && widget.currentUser.role == UserRole.PICKER) {
-      final pickerRules = kTransitionRules.where((t) {
-        return t.from == widget.order.status && t.roles.contains('PICKER');
-      }).toList();
-      return [...base, ...pickerRules];
+    final result = <TransitionDefinition>[];
+    void addUnique(TransitionDefinition item) {
+      if (!result.any(
+        (existing) => existing.from == item.from && existing.to == item.to,
+      )) {
+        result.add(item);
+      }
     }
 
-    return base;
+    for (final item in base) {
+      addUnique(item);
+    }
+
+    // Allow picker-scoped transitions for the assigned picker even when
+    // the static role map does not include PICKER.
+    final isAssignedPicker =
+        widget.currentUser.role == UserRole.PICKER &&
+        widget.order.pickerId == widget.currentUser.id;
+    if (isAssignedPicker) {
+      for (final item in kTransitionRules.where((t) {
+        if (t.from != widget.order.status) return false;
+        if (widget.order.status == OrderStatus.IN_COLLECTION) {
+          return t.to == OrderStatus.READY || t.to == OrderStatus.PARTIAL;
+        }
+        if (widget.order.status == OrderStatus.PARTIAL) {
+          return t.to == OrderStatus.READY;
+        }
+        return false;
+      })) {
+        addUnique(item);
+      }
+    }
+
+    // Also include any explicit picker roles for completeness.
+    if (widget.currentUser.role == UserRole.PICKER) {
+      for (final item in kTransitionRules.where((t) {
+        return t.from == widget.order.status && t.roles.contains('PICKER');
+      })) {
+        addUnique(item);
+      }
+    }
+
+    return result;
   }
 
   @override
@@ -113,7 +142,9 @@ class _TransitionSheetState extends State<TransitionSheet> {
     // Debug: show computed available transitions and current role once
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final role = widget.currentUser.role.name;
-      final names = _available.map((t) => '${t.from.name}->${t.to.name}').join(', ');
+      final names = _available
+          .map((t) => '${t.from.name}->${t.to.name}')
+          .join(', ');
       final msg = 'role=$role available=[$names]';
       debugPrint('[TransitionSheet] $msg');
       // if (mounted) {
@@ -160,7 +191,8 @@ class _TransitionSheetState extends State<TransitionSheet> {
   Future<void> _submit() async {
     if (_selected == null) return;
     // Debug: show which transition is being submitted and current computed availability
-    final submitMsg = 'Submitting transition ${_selected!.from.name}->${_selected!.to.name} for role=${widget.currentUser.role.name}';
+    final submitMsg =
+        'Submitting transition ${_selected!.from.name}->${_selected!.to.name} for role=${widget.currentUser.role.name}';
     debugPrint('[TransitionSheet] $submitMsg');
     // if (mounted) {
     //   ScaffoldMessenger.of(context).showSnackBar(
@@ -272,27 +304,27 @@ class _TransitionSheetState extends State<TransitionSheet> {
     // server can validate assigned-picker transitions even when the
     // transition definition doesn't require an explicit pickerId.
     final effectivePickerId = _selected!.requiresPickerId
-      ? _selectedPicker!.id
-      : (widget.currentUser.role == UserRole.PICKER
-        ? widget.currentUser.id
-        : null);
+        ? _selectedPicker!.id
+        : (widget.currentUser.role == UserRole.PICKER
+              ? widget.currentUser.id
+              : null);
 
     final success = await provider.performTransition(
       orderId: widget.order.id,
       nextStatus: _selected!.to,
       pickerId: effectivePickerId,
       trolleyId: _selected!.requiresTrolleyId
-        ? _trolleyIdController.text.trim()
-        : null,
+          ? _trolleyIdController.text.trim()
+          : null,
       backorderedItems: isInCollectionToPartial
-        ? null
-        : backorderedItemsPayload,
+          ? null
+          : backorderedItemsPayload,
       arrivedItemIds: _selected!.requiresArrivedItemIds
-        ? _selectedArrivedItemIds.toList()
-        : null,
+          ? _selectedArrivedItemIds.toList()
+          : null,
       notes: _notesController.text.trim().isNotEmpty
-        ? _notesController.text.trim()
-        : null,
+          ? _notesController.text.trim()
+          : null,
     );
 
     if (!mounted) return;
@@ -312,25 +344,8 @@ class _TransitionSheetState extends State<TransitionSheet> {
   }
 
   double _calculateInitialChildSize() {
-    final transitions = _available.length;
-    final backorderedItems = widget.order.items.length;
-    final arrivedItems = widget.order.items
-        .where((i) => i.status == ItemStatus.BACKORDERED)
-        .length;
-
-    double size = 0.35;
-    size += min(transitions, 3) * 0.05;
-    if (_selected?.requiresPickerId == true) size += 0.08;
-    if (_selected?.requiresTrolleyId == true) size += 0.06;
-    if (_selected?.requiresArrivedItemIds == true) {
-      size += 0.12 + min(arrivedItems, 4) * 0.03;
-    }
-    if (_selected?.requiresBackorderedItems == true) {
-      size += 0.12 + min(backorderedItems, 5) * 0.03;
-    }
-    if (_errorMessage != null) size += 0.05;
-
-    return size.clamp(0.35, 0.92);
+    // Open the modal at maximum allowed height so it appears near-fullscreen.
+    return 0.92;
   }
 
   @override
@@ -584,13 +599,6 @@ class _TransitionSheetState extends State<TransitionSheet> {
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
-                                        Text(
-                                          '${picker.username} (${picker.activeAssignmentsCount} ta faol)',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: AppTheme.onSurfaceMuted,
-                                          ),
-                                        ),
                                       ],
                                     ),
                                   );
@@ -658,9 +666,8 @@ class _TransitionSheetState extends State<TransitionSheet> {
                             },
                           ),
                         ),
-                        const SizedBox(height: 12),
                       ],
-
+                      const SizedBox(height: 16),
                       if (_selected?.requiresBackorderedItems == true) ...[
                         Text(
                           'BOR MAHSULOTLAR',
@@ -670,207 +677,213 @@ class _TransitionSheetState extends State<TransitionSheet> {
                                 letterSpacing: 0.4,
                               ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: const Color(0xFFE5E7EB)),
                           ),
-                          child: Column(
-                            children: List.generate(widget.order.items.length, (
-                              index,
-                            ) {
-                              final item = widget.order.items[index];
-                              final isSelected = _selectedBackorderedItemIds
-                                  .contains(item.id);
-                              final controller = _backorderedQuantityControllers
-                                  .putIfAbsent(
-                                    item.id,
-                                    () => TextEditingController(
-                                      text: (item.quantity.toInt() - 1)
-                                          .clamp(0, item.quantity.toInt())
-                                          .toString(),
-                                    ),
-                                  );
-                              return Column(
-                                children: [
-                                  CheckboxListTile(
-                                    title: Text(
-                                      item.productName,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              // Show at most 3 items' worth of height; allow scrolling when more
+                              maxHeight: 3 * 88.0,
+                            ),
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              shrinkWrap: true,
+                              physics: widget.order.items.length > 3
+                                  ? const AlwaysScrollableScrollPhysics()
+                                  : const NeverScrollableScrollPhysics(),
+                              itemCount: widget.order.items.length,
+                              itemBuilder: (context, index) {
+                                final item = widget.order.items[index];
+                                final isSelected = _selectedBackorderedItemIds
+                                    .contains(item.id);
+                                final controller =
+                                    _backorderedQuantityControllers.putIfAbsent(
+                                      item.id,
+                                      () => TextEditingController(
+                                        text: (item.quantity.toInt() - 1)
+                                            .clamp(0, item.quantity.toInt())
+                                            .toString(),
                                       ),
-                                    ),
-                                    subtitle: Text(
-                                      'Kerak: ${item.quantity.toInt()} dona',
-                                    ),
-                                    value: isSelected,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        if (value == true) {
-                                          _selectedBackorderedItemIds.add(
-                                            item.id,
-                                          );
-                                        } else {
-                                          _selectedBackorderedItemIds.remove(
-                                            item.id,
-                                          );
-                                        }
-                                      });
-                                    },
-                                    controlAffinity:
-                                        ListTileControlAffinity.leading,
-                                  ),
-                                  if (isSelected) ...[
-                                    Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        20,
-                                        0,
-                                        20,
-                                        16,
+                                    );
+                                return Column(
+                                  children: [
+                                    CheckboxListTile(
+                                      title: Text(
+                                        item.productName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
-                                      child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: const Color(0xFFF3F4F6),
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                                children: [
-                                                  IconButton(
-                                                    padding: EdgeInsets.zero,
-                                                    constraints:
-                                                        const BoxConstraints(),
-                                                    icon: const Icon(
-                                                      Icons.remove,
-                                                      size: 20,
-                                                    ),
-                                                    onPressed: () {
-                                                      int current =
-                                                          int.tryParse(
-                                                            controller.text,
-                                                          ) ??
-                                                          0;
-                                                      int next = current - 1;
-                                                      final min = 0;
-                                                      final max = item.quantity
-                                                          .toInt();
-                                                      if (next < min) {
-                                                        next = min;
-                                                      }
-                                                      if (next > max) {
-                                                        next = max;
-                                                      }
-                                                      controller.text = next
-                                                          .toString();
-                                                      setState(() {});
-                                                    },
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  SizedBox(
-                                                    width: 36,
-                                                    child: Text(
-                                                      controller.text,
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  IconButton(
-                                                    padding: EdgeInsets.zero,
-                                                    constraints:
-                                                        const BoxConstraints(),
-                                                    icon: const Icon(
-                                                      Icons.add,
-                                                      size: 20,
-                                                    ),
-                                                    onPressed: () {
-                                                      int current =
-                                                          int.tryParse(
-                                                            controller.text,
-                                                          ) ??
-                                                          1;
-                                                      int next = current + 1;
-                                                      final min = 1;
-                                                      final max = item.quantity
-                                                          .toInt();
-                                                      if (next < min) {
-                                                        next = min;
-                                                      }
-                                                      if (next > max) {
-                                                        next = max;
-                                                      }
-                                                      controller.text = next
-                                                          .toString();
-                                                      setState(() {});
-                                                    },
-                                                  ),
-                                                ],
-                                              ),
+                                      subtitle: Text(
+                                        'Kerak: ${item.quantity.toInt()} dona',
+                                      ),
+                                      value: isSelected,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          if (value == true) {
+                                            _selectedBackorderedItemIds.add(
+                                              item.id,
+                                            );
+                                          } else {
+                                            _selectedBackorderedItemIds.remove(
+                                              item.id,
+                                            );
+                                          }
+                                        });
+                                      },
+                                      controlAffinity:
+                                          ListTileControlAffinity.leading,
+                                    ),
+                                    if (isSelected) ...[
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                          20,
+                                          0,
+                                          20,
+                                          16,
+                                        ),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF3F4F6),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
                                             ),
-                                      
-                                      
-                                      // Container(
-                                      //   padding: const EdgeInsets.symmetric(
-                                      //     horizontal: 12,
-                                      //     vertical: 10,
-                                      //   ),
-                                      //   decoration: BoxDecoration(
-                                      //     color: Colors.white,
-                                      //     borderRadius: BorderRadius.circular(
-                                      //       14,
-                                      //     ),
-                                      //     border: Border.all(
-                                      //       color: const Color(0xFFE5E7EB),
-                                      //     ),
-                                      //   ),
-                                      //   child: Row(
-                                      //     children: [
-                                      //       // Expanded(
-                                      //       //   child: Column(
-                                      //       //     crossAxisAlignment:
-                                      //       //         CrossAxisAlignment.start,
-                                      //       //     children: [
-                                      //       //       // Text(
-                                      //       //       //   'Yetishmayotgan soni',
-                                      //       //       //   style: Theme.of(
-                                      //       //       //     context,
-                                      //       //       //   ).textTheme.bodyMedium,
-                                      //       //       // ),
-                                      //       //       const SizedBox(height: 6),
-                                      //       //       Text(
-                                      //       //         'Mavjud:',
-                                      //       //         style: Theme.of(context)
-                                      //       //             .textTheme
-                                      //       //             .bodySmall
-                                      //       //             ?.copyWith(
-                                      //       //               color: AppTheme
-                                      //       //                   .onSurfaceMuted,
-                                      //       //             ),
-                                      //       //       ),
-                                      //       //     ],
-                                      //       //   ),
-                                      //       // ),
-                                      //       // const SizedBox(width: 12),
-                                      //     ],
-                                      //   ),
-                                      // ),
-                                    ),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceEvenly,
+                                            children: [
+                                              IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                icon: const Icon(
+                                                  Icons.remove,
+                                                  size: 20,
+                                                ),
+                                                onPressed: () {
+                                                  int current =
+                                                      int.tryParse(
+                                                        controller.text,
+                                                      ) ??
+                                                      0;
+                                                  int next = current - 1;
+                                                  final min = 0;
+                                                  final max = item.quantity
+                                                      .toInt();
+                                                  if (next < min) next = min;
+                                                  if (next > max) next = max;
+                                                  controller.text = next
+                                                      .toString();
+                                                  setState(() {});
+                                                },
+                                              ),
+                                              const SizedBox(width: 8),
+                                              SizedBox(
+                                                width: 56,
+                                                height: 36,
+                                                child: TextField(
+                                                  controller: controller,
+                                                  textAlign: TextAlign.center,
+                                                  keyboardType:
+                                                      TextInputType.number,
+                                                  inputFormatters: [
+                                                    FilteringTextInputFormatter
+                                                        .digitsOnly,
+                                                  ],
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        isDense: true,
+                                                        contentPadding:
+                                                            EdgeInsets.symmetric(
+                                                              vertical: 10,
+                                                              horizontal: 4,
+                                                            ),
+                                                        enabledBorder:
+                                                            InputBorder.none,
+                                                        focusedBorder:
+                                                            InputBorder.none,
+                                                        focusColor:
+                                                            Colors.transparent,
+                                                        fillColor:
+                                                            Colors.transparent,
+                                                        border:
+                                                            InputBorder.none,
+                                                      ),
+                                                  onChanged: (value) {
+                                                    final parsed =
+                                                        int.tryParse(value) ??
+                                                        0;
+                                                    final min = 0;
+                                                    final max = item.quantity
+                                                        .toInt();
+                                                    final next = parsed.clamp(
+                                                      min,
+                                                      max,
+                                                    );
+                                                    if (next.toString() !=
+                                                        value) {
+                                                      controller.text = next
+                                                          .toString();
+                                                      controller.selection =
+                                                          TextSelection.fromPosition(
+                                                            TextPosition(
+                                                              offset: controller
+                                                                  .text
+                                                                  .length,
+                                                            ),
+                                                          );
+                                                    }
+                                                    setState(() {});
+                                                  },
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                icon: const Icon(
+                                                  Icons.add,
+                                                  size: 20,
+                                                ),
+                                                onPressed: () {
+                                                  int current =
+                                                      int.tryParse(
+                                                        controller.text,
+                                                      ) ??
+                                                      1;
+                                                  int next = current + 1;
+                                                  final min = 1;
+                                                  final max = item.quantity
+                                                      .toInt();
+                                                  if (next < min) next = min;
+                                                  if (next > max) next = max;
+                                                  controller.text = next
+                                                      .toString();
+                                                  setState(() {});
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
-                                ],
-                              );
-                            }),
+                                );
+                              },
+                            ),
                           ),
                         ),
                         // const SizedBox(height: 16),
@@ -996,69 +1009,84 @@ class _TransitionOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final toStatus = definition.to;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: selected
-              ? toStatus.color.withAlpha((0.12 * 255).round())
-              : AppTheme.surfaceVariant,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? toStatus.color : AppTheme.border,
-            width: selected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              toStatus.icon,
-              size: 20,
-              color: selected ? toStatus.color : AppTheme.onSurfaceMuted,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    toStatus.displayName,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? toStatus.color : AppTheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _statusDescription(),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.onSurfaceMuted,
-                    ),
-                  ),
-                  if (definition.requiresPickerId ||
-                      definition.requiresPaid ||
-                      definition.requiresArrivedItemIds)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        _requirementText(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.onSurfaceMuted,
-                        ),
-                      ),
-                    ),
-                ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: selected ? toStatus.lightColor : AppTheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(22),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: selected ? toStatus.color : AppTheme.border,
+                width: selected ? 1.5 : 1,
               ),
             ),
-            if (selected)
-              Icon(Icons.check_circle, size: 20, color: toStatus.color),
-          ],
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? toStatus.color.withAlpha((0.14 * 255).round())
+                        : AppTheme.surface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    toStatus.icon,
+                    size: 18,
+                    color: selected ? toStatus.color : AppTheme.onSurfaceMuted,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        toStatus.displayNameUz,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: selected ? toStatus.color : AppTheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _statusDescription(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.onSurfaceMuted,
+                          height: 1.3,
+                        ),
+                      ),
+                      if (definition.requiresPickerId ||
+                          definition.requiresTrolleyId ||
+                          definition.requiresPaid ||
+                          definition.requiresArrivedItemIds)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            _requirementText(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.onSurfaceMuted,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (selected)
+                  Icon(Icons.check_circle, size: 20, color: toStatus.color),
+              ],
+            ),
+          ),
         ),
       ),
     );

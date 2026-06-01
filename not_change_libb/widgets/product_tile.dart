@@ -14,12 +14,17 @@ class ProductItemTile extends StatelessWidget {
     return Consumer<PickerProvider>(
       builder: (context, provider, _) {
         final collected = provider.getCollected(product.id);
-        final statusCode = provider.itemCollectedStatus(product.id, product.requiredQty);
+        final statusCode = provider.itemCollectedStatus(
+          product.id,
+          product.requiredQty,
+        );
 
         return Container(
           padding: const EdgeInsets.fromLTRB(0, 14, 16, 14),
           decoration: const BoxDecoration(
-            border: Border(bottom: BorderSide(color: AppColors.divider, width: 1)),
+            border: Border(
+              bottom: BorderSide(color: AppColors.divider, width: 1),
+            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -40,7 +45,8 @@ class ProductItemTile extends StatelessWidget {
                         child: Image.network(
                           product.imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const _ProductPlaceholder(),
+                          errorBuilder: (_, _, _) =>
+                              const _ProductPlaceholder(),
                         ),
                       )
                     : const _ProductPlaceholder(),
@@ -152,7 +158,11 @@ class _StepBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool enabled;
-  const _StepBtn({required this.icon, required this.onTap, required this.enabled});
+  const _StepBtn({
+    required this.icon,
+    required this.onTap,
+    required this.enabled,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -165,7 +175,9 @@ class _StepBtn extends StatelessWidget {
           color: enabled ? AppColors.primaryLight : AppColors.background,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: enabled ? AppColors.primary.withOpacity(0.3) : AppColors.border,
+            color: enabled
+                ? AppColors.primary.withOpacity(0.3)
+                : AppColors.border,
           ),
         ),
         child: Icon(
@@ -213,7 +225,11 @@ class _StatusIcon extends StatelessWidget {
             color: AppColors.itemRed.withOpacity(0.15),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.priority_high, size: 13, color: AppColors.itemRed),
+          child: const Icon(
+            Icons.priority_high,
+            size: 13,
+            color: AppColors.itemRed,
+          ),
         );
     }
   }
@@ -224,6 +240,10 @@ class _ProductPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Icon(Icons.inventory_2_outlined, size: 24, color: AppColors.textMuted);
+    return const Icon(
+      Icons.inventory_2_outlined,
+      size: 24,
+      color: AppColors.textMuted,
+    );
   }
 }

@@ -7,19 +7,19 @@ class AppConfig {
   // - Android emulator should use 10.0.2.2 to reach host machine
   // - Fallback to localhost otherwise
   static String get baseUrl {
-    if (kIsWeb) return 'http://localhost:3000';
+    if (kIsWeb) return 'https://kb-staging.qisqa.link';
     try {
-      if (Platform.isAndroid) return 'http://10.0.2.2:3000';
+      if (Platform.isAndroid) return 'https://kb-staging.qisqa.link';
     } catch (_) {}
-    return 'http://localhost:3000';
+    return 'https://kb-staging.qisqa.link';
   }
 
   static String get socketUrl {
-    if (kIsWeb) return 'http://localhost:3000';
+    if (kIsWeb) return 'https://kb-staging.qisqa.link';
     try {
-      if (Platform.isAndroid) return 'http://10.0.2.2:3000';
+      if (Platform.isAndroid) return 'https://kb-staging.qisqa.link';
     } catch (_) {}
-    return 'http://localhost:3000';
+    return 'https://kb-staging.qisqa.link';
   }
 
   static const String socketNamespace = '/socket';
@@ -27,6 +27,7 @@ class AppConfig {
   static const String tokenKey = 'jwt_token';
   static const String userKey = 'user_data';
   static const String hiddenStatusesKey = 'hidden_statuses';
+  static const String statusChangeMethodKey = 'status_change_method_dropdown';
 
   // Pagination
   static const int defaultPageSize = 20;

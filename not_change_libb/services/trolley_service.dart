@@ -54,7 +54,10 @@ class TrolleyService {
     return null;
   }
 
-  Future<void> assign({required String orderId, required String trolleyCode}) async {
+  Future<void> assign({
+    required String orderId,
+    required String trolleyCode,
+  }) async {
     // Unassign any previous trolley for this order
     _assignments.removeWhere((k, v) => k == orderId);
     _assignments[orderId] = trolleyCode;

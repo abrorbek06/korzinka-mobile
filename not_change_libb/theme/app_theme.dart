@@ -18,13 +18,13 @@ class AppColors {
   static const Color textMuted = Color(0xFFBFC2D6);
 
   // Status section headers
-  static const Color yangiColor = Color(0xFF22C55E);   // Yangi - yashil
-  static const Color tasdiqColor = Color(0xFF3B82F6);  // Tasdiqlangan - ko'k
-  static const Color yigColor = Color(0xFF5C5FE4);     // Yig'ilmoqda - binafsha
-  static const Color qismanColor = Color(0xFFF59E0B);  // Qisman - to'q sariq
-  static const Color tayyorColor = Color(0xFF10B981);  // Tayyor - yashil
-  static const Color yakunColor = Color(0xFF6B7280);   // Yakunlangan - kulrang
-  static const Color bekorColor = Color(0xFFEF4444);   // Bekor - qizil
+  static const Color yangiColor = Color(0xFF22C55E); // Yangi - yashil
+  static const Color tasdiqColor = Color(0xFF3B82F6); // Tasdiqlangan - ko'k
+  static const Color yigColor = Color(0xFF5C5FE4); // Yig'ilmoqda - binafsha
+  static const Color qismanColor = Color(0xFFF59E0B); // Qisman - to'q sariq
+  static const Color tayyorColor = Color(0xFF10B981); // Tayyor - yashil
+  static const Color yakunColor = Color(0xFF6B7280); // Yakunlangan - kulrang
+  static const Color bekorColor = Color(0xFFEF4444); // Bekor - qizil
 
   // Item status
   static const Color itemGreen = Color(0xFF22C55E);
@@ -113,9 +113,18 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-        labelStyle: const TextStyle(color: AppColors.textSecondary, fontFamily: 'Nunito'),
-        hintStyle: const TextStyle(color: AppColors.textMuted, fontFamily: 'Nunito'),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 15,
+        ),
+        labelStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontFamily: 'Nunito',
+        ),
+        hintStyle: const TextStyle(
+          color: AppColors.textMuted,
+          fontFamily: 'Nunito',
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -123,7 +132,9 @@ class AppTheme {
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           textStyle: const TextStyle(
             fontFamily: 'Nunito',
             fontSize: 16,
@@ -230,15 +241,15 @@ class AppTheme {
   }
 
   static BoxShadow get cardShadow => const BoxShadow(
-        color: Color(0x0C000000),
-        blurRadius: 12,
-        offset: Offset(0, 2),
-        spreadRadius: 0,
-      );
+    color: Color(0x0C000000),
+    blurRadius: 12,
+    offset: Offset(0, 2),
+    spreadRadius: 0,
+  );
 
   static BoxShadow get bottomBarShadow => const BoxShadow(
-        color: Color(0x14000000),
-        blurRadius: 20,
-        offset: Offset(0, -4),
-      );
+    color: Color(0x14000000),
+    blurRadius: 20,
+    offset: Offset(0, -4),
+  );
 }

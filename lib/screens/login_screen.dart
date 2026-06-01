@@ -10,7 +10,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -22,11 +23,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
-    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
     );
+    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
     _animController.forward();
   }
 
@@ -41,10 +46,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
-    await auth.login(
-      _usernameController.text.trim(),
-      _passwordController.text,
-    );
+    await auth.login(_usernameController.text.trim(), _passwordController.text);
   }
 
   @override
@@ -81,9 +83,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         const SizedBox(height: 6),
                         Text(
                           'Access your order management dashboard',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppTheme.onSurfaceMuted,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppTheme.onSurfaceMuted),
                         ),
                         const SizedBox(height: 36),
 
@@ -96,7 +97,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                           autocorrect: false,
                           textInputAction: TextInputAction.next,
-                          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                          validator: (v) =>
+                              (v == null || v.isEmpty) ? 'Required' : null,
                         ),
                         const SizedBox(height: 16),
 
@@ -108,15 +110,20 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                                _obscurePassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
                               ),
-                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
                             ),
                           ),
                           obscureText: _obscurePassword,
                           textInputAction: TextInputAction.done,
                           onFieldSubmitted: (_) => _handleLogin(),
-                          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                          validator: (v) =>
+                              (v == null || v.isEmpty) ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
 
@@ -127,16 +134,25 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             decoration: BoxDecoration(
                               color: const Color(0xFFEF4444).withOpacity(0.12),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
+                              border: Border.all(
+                                color: const Color(0xFFEF4444).withOpacity(0.3),
+                              ),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 18),
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: Color(0xFFEF4444),
+                                  size: 18,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     auth.error!,
-                                    style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13),
+                                    style: const TextStyle(
+                                      color: Color(0xFFEF4444),
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -158,7 +174,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     width: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
-                                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                                      valueColor: AlwaysStoppedAnimation(
+                                        Colors.white,
+                                      ),
                                     ),
                                   )
                                 : const Text('Sign In'),
@@ -186,7 +204,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             color: AppTheme.primary,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.view_kanban_outlined, color: Color(0xFF0F1923), size: 24),
+          child: const Icon(
+            Icons.view_kanban_outlined,
+            color: Color(0xFF0F1923),
+            size: 24,
+          ),
         ),
         const SizedBox(width: 12),
         Column(

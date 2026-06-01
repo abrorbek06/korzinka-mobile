@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/constants.dart';
-import '../models/order_model.dart';
 import '../providers/picker_provider.dart';
-import '../services/trolley_service.dart';
 import '../theme/app_theme.dart';
 
 class TrolleyPickerSheet extends StatefulWidget {
@@ -25,10 +23,8 @@ class TrolleyPickerSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => TrolleyPickerSheet(
-        orderId: orderId,
-        currentTrolley: currentTrolley,
-      ),
+      builder: (_) =>
+          TrolleyPickerSheet(orderId: orderId, currentTrolley: currentTrolley),
     );
   }
 
@@ -81,8 +77,11 @@ class _TrolleyPickerSheetState extends State<TrolleyPickerSheet> {
                     color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.shopping_cart_outlined,
-                      size: 18, color: AppColors.primary),
+                  child: const Icon(
+                    Icons.shopping_cart_outlined,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Column(
@@ -136,30 +135,33 @@ class _TrolleyPickerSheetState extends State<TrolleyPickerSheet> {
                 itemBuilder: (_, i) {
                   final t = trolleys[i];
                   final isSelected = _selected == t.code;
-                  final isOther = t.assignedOrderId != null &&
+                  final isOther =
+                      t.assignedOrderId != null &&
                       t.assignedOrderId != widget.orderId;
 
                   return GestureDetector(
-                    onTap: isOther ? null : () {
-                      setState(() {
-                        _selected = isSelected ? null : t.code;
-                      });
-                    },
+                    onTap: isOther
+                        ? null
+                        : () {
+                            setState(() {
+                              _selected = isSelected ? null : t.code;
+                            });
+                          },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? AppColors.primary
                             : isOther
-                                ? AppColors.background
-                                : AppColors.primaryLight,
+                            ? AppColors.background
+                            : AppColors.primaryLight,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: isSelected
                               ? AppColors.primary
                               : isOther
-                                  ? AppColors.border
-                                  : AppColors.primaryLight,
+                              ? AppColors.border
+                              : AppColors.primaryLight,
                           width: isSelected ? 2 : 1,
                         ),
                       ),
@@ -174,15 +176,18 @@ class _TrolleyPickerSheetState extends State<TrolleyPickerSheet> {
                               color: isSelected
                                   ? Colors.white
                                   : isOther
-                                      ? AppColors.textMuted
-                                      : AppColors.primary,
+                                  ? AppColors.textMuted
+                                  : AppColors.primary,
                               fontFamily: 'Nunito',
                             ),
                           ),
                           if (isOther)
                             Container(
                               margin: const EdgeInsets.only(top: 2),
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 1,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.textMuted.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(3),
@@ -198,8 +203,11 @@ class _TrolleyPickerSheetState extends State<TrolleyPickerSheet> {
                               ),
                             ),
                           if (isSelected)
-                            const Icon(Icons.check_circle,
-                                size: 12, color: Colors.white),
+                            const Icon(
+                              Icons.check_circle,
+                              size: 12,
+                              color: Colors.white,
+                            ),
                         ],
                       ),
                     ),
@@ -219,12 +227,17 @@ class _TrolleyPickerSheetState extends State<TrolleyPickerSheet> {
                   onPressed: _selected == null
                       ? null
                       : () async {
-                          await provider.assignTrolley(widget.orderId, _selected!);
+                          await provider.assignTrolley(
+                            widget.orderId,
+                            _selected!,
+                          );
                           if (context.mounted) Navigator.pop(context);
                         },
-                  child: Text(_selected != null
-                      ? '${AppStrings.confirm}: ${_selected}'
-                      : AppStrings.selectTrolley),
+                  child: Text(
+                    _selected != null
+                        ? '${AppStrings.confirm}: $_selected'
+                        : AppStrings.selectTrolley,
+                  ),
                 ),
               ),
             ),
@@ -244,13 +257,21 @@ class _LegendDot extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(width: 10, height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         const SizedBox(width: 5),
-        Text(label, style: const TextStyle(
-          fontSize: 12, color: AppColors.textSecondary,
-          fontWeight: FontWeight.w600, fontFamily: 'Nunito',
-        )),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Nunito',
+          ),
+        ),
       ],
     );
   }

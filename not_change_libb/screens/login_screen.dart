@@ -24,10 +24,15 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
     _fade = CurvedAnimation(parent: _anim, curve: Curves.easeOut);
-    _slide = Tween(begin: const Offset(0, 0.08), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _anim, curve: Curves.easeOut));
+    _slide = Tween(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _anim, curve: Curves.easeOut));
     _anim.forward();
   }
 
@@ -42,9 +47,9 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     await context.read<AuthProvider>().login(
-          _userCtrl.text.trim(),
-          _passCtrl.text,
-        );
+      _userCtrl.text.trim(),
+      _passCtrl.text,
+    );
   }
 
   @override
@@ -89,17 +94,15 @@ class _LoginScreenState extends State<LoginScreen>
 
                         Text(
                           AppStrings.appName,
-                          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                letterSpacing: -1,
-                              ),
+                          style: Theme.of(context).textTheme.headlineLarge
+                              ?.copyWith(letterSpacing: -1),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 6),
                         Text(
                           'Yig\'uvchi portali',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 40),
@@ -109,8 +112,11 @@ class _LoginScreenState extends State<LoginScreen>
                           controller: _userCtrl,
                           decoration: InputDecoration(
                             labelText: AppStrings.username,
-                            prefixIcon: const Icon(Icons.person_outline_rounded,
-                                color: AppColors.textSecondary, size: 20),
+                            prefixIcon: const Icon(
+                              Icons.person_outline_rounded,
+                              color: AppColors.textSecondary,
+                              size: 20,
+                            ),
                           ),
                           autocorrect: false,
                           textInputAction: TextInputAction.next,
@@ -125,8 +131,11 @@ class _LoginScreenState extends State<LoginScreen>
                           obscureText: _obscure,
                           decoration: InputDecoration(
                             labelText: AppStrings.password,
-                            prefixIcon: const Icon(Icons.lock_outline_rounded,
-                                color: AppColors.textSecondary, size: 20),
+                            prefixIcon: const Icon(
+                              Icons.lock_outline_rounded,
+                              color: AppColors.textSecondary,
+                              size: 20,
+                            ),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscure
@@ -135,7 +144,8 @@ class _LoginScreenState extends State<LoginScreen>
                                 color: AppColors.textSecondary,
                                 size: 20,
                               ),
-                              onPressed: () => setState(() => _obscure = !_obscure),
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
                             ),
                           ),
                           textInputAction: TextInputAction.done,
@@ -155,8 +165,11 @@ class _LoginScreenState extends State<LoginScreen>
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.error_outline,
-                                    size: 16, color: AppColors.bekorColor),
+                                const Icon(
+                                  Icons.error_outline,
+                                  size: 16,
+                                  color: AppColors.bekorColor,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -189,8 +202,10 @@ class _LoginScreenState extends State<LoginScreen>
                                       color: Colors.white,
                                     ),
                                   )
-                                : Text(AppStrings.loginBtn,
-                                    style: const TextStyle(fontSize: 16)),
+                                : Text(
+                                    AppStrings.loginBtn,
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
                           ),
                         ),
                       ],

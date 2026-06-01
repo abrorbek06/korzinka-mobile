@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
@@ -19,7 +18,8 @@ class AuthProvider extends ChangeNotifier {
   AuthenticatedUser? get user => _user;
   String? get token => _token;
   String? get error => _error;
-  bool get isAuthenticated => _state == AuthState.authenticated && _token != null;
+  bool get isAuthenticated =>
+      _state == AuthState.authenticated && _token != null;
 
   Future<void> tryRestoreSession() async {
     _setState(AuthState.loading);
@@ -39,7 +39,7 @@ class AuthProvider extends ChangeNotifier {
         _token = savedToken;
         _user = user;
       } catch (_) {
-        // If verification fails (network error, server down, etc.), 
+        // If verification fails (network error, server down, etc.),
         // still restore session with stored data. Token will be validated on next API call.
         _token = savedToken;
         _user = AuthenticatedUser.fromJsonString(savedUser);
@@ -55,7 +55,10 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
     _setState(AuthState.loading);
     try {
-      final result = await _authService.login(username: username, password: password);
+      final result = await _authService.login(
+        username: username,
+        password: password,
+      );
       _token = result.accessToken;
       _user = result.user;
 

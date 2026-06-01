@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../config/constants.dart';
-import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
-import '../providers/picker_provider.dart';
 import '../theme/app_theme.dart';
 import 'orders_screen.dart';
 
@@ -27,14 +25,9 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [AppTheme.bottomBarShadow],
-        ),
+        decoration: BoxDecoration(boxShadow: [AppTheme.bottomBarShadow]),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
           onTap: (i) => setState(() => _currentIndex = i),
@@ -90,8 +83,11 @@ class _OrdersListPlaceholder extends StatelessWidget {
                 color: AppColors.primaryLight,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(Icons.receipt_long_outlined,
-                  size: 32, color: AppColors.primary),
+              child: const Icon(
+                Icons.receipt_long_outlined,
+                size: 32,
+                color: AppColors.primary,
+              ),
             ),
             const SizedBox(height: 14),
             const Text(
@@ -132,8 +128,7 @@ class _ItemsScreen extends StatelessWidget {
                 color: AppColors.primaryLight,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Icon(Icons.list,
-                  size: 32, color: AppColors.primary),
+              child: const Icon(Icons.list, size: 32, color: AppColors.primary),
             ),
             const SizedBox(height: 14),
             const Text(
@@ -182,7 +177,10 @@ class ProfileScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.primaryLight,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 3),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                      width: 3,
+                    ),
                   ),
                   child: Center(
                     child: Text(
@@ -208,7 +206,10 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(20),
@@ -241,20 +242,23 @@ class ProfileScreen extends StatelessWidget {
             child: Column(
               children: [
                 _ProfileRow(
-                    icon: Icons.person_outline_rounded,
-                    label: 'Username',
-                    value: user.username),
+                  icon: Icons.person_outline_rounded,
+                  label: 'Username',
+                  value: user.username,
+                ),
                 const Divider(height: 20),
                 _ProfileRow(
-                    icon: Icons.badge_outlined,
-                    label: AppStrings.role,
-                    value: AppStrings.picker),
+                  icon: Icons.badge_outlined,
+                  label: AppStrings.role,
+                  value: AppStrings.picker,
+                ),
                 const Divider(height: 20),
                 _ProfileRow(
-                    icon: Icons.circle,
-                    iconColor: AppColors.yangiColor,
-                    label: 'Holat',
-                    value: 'Faol'),
+                  icon: Icons.circle,
+                  iconColor: AppColors.yangiColor,
+                  label: 'Holat',
+                  value: 'Faol',
+                ),
               ],
             ),
           ),
@@ -264,7 +268,11 @@ class ProfileScreen extends StatelessWidget {
           // Logout
           Padding(
             padding: EdgeInsets.fromLTRB(
-                16, 0, 16, MediaQuery.of(context).padding.bottom + 16),
+              16,
+              0,
+              16,
+              MediaQuery.of(context).padding.bottom + 16,
+            ),
             child: SizedBox(
               width: double.infinity,
               height: 52,
@@ -274,9 +282,12 @@ class ProfileScreen extends StatelessWidget {
                 label: const Text(AppStrings.logout),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.bekorColor,
-                  side: BorderSide(color: AppColors.bekorColor.withOpacity(0.4)),
+                  side: BorderSide(
+                    color: AppColors.bekorColor.withOpacity(0.4),
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   textStyle: const TextStyle(
                     fontFamily: 'Nunito',
                     fontWeight: FontWeight.w700,
@@ -297,8 +308,10 @@ class ProfileScreen extends StatelessWidget {
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(AppStrings.logoutConfirm,
-            style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w700)),
+        title: const Text(
+          AppStrings.logoutConfirm,
+          style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w700),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -309,7 +322,9 @@ class ProfileScreen extends StatelessWidget {
               Navigator.pop(context);
               auth.logout();
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.bekorColor),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.bekorColor,
+            ),
             child: const Text(AppStrings.logoutYes),
           ),
         ],
@@ -342,8 +357,11 @@ class _ProfileRow extends StatelessWidget {
             color: AppColors.background,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon,
-              size: 16, color: iconColor ?? AppColors.textSecondary),
+          child: Icon(
+            icon,
+            size: 16,
+            color: iconColor ?? AppColors.textSecondary,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(

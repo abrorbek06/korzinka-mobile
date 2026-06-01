@@ -1,42 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/user_model.dart';
 import '../models/order_model.dart';
 import '../providers/orders_provider.dart';
 import '../providers/auth_provider.dart';
+import '../utils/snackbar_utils.dart';
 import '../widgets/audit_log_tile.dart';
 import '../widgets/transition_sheet.dart';
-
-class TrolleyOption {
-  final String id;
-  final String code;
-  final String name;
-
-  const TrolleyOption({
-    required this.id,
-    required this.code,
-    required this.name,
-  });
-}
-
-const List<TrolleyOption> _trolleys = [
-  TrolleyOption(
-    id: '11111111-1111-1111-1111-111111111111',
-    code: 'TR-001',
-    name: 'Arava 1',
-  ),
-  TrolleyOption(
-    id: '22222222-2222-2222-2222-222222222222',
-    code: 'TR-002',
-    name: 'Arava 2',
-  ),
-  TrolleyOption(
-    id: '33333333-3333-3333-3333-333333333333',
-    code: 'TR-003',
-    name: 'Arava 3',
-  ),
-];
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -71,29 +43,48 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
       context: context,
       builder: (dialogCtx) => _TrolleyDialog(
         order: order,
-        onAssign: (trolleyId) async {
-          final success = await context.read<OrdersProvider>().updateDetails(
+        onAssign: (String trolleyId) async {
+          final success = await context.read<OrdersProvider>().attachCart(
             orderId: order.id,
-            trolleyId: trolleyId,
+            cartId: trolleyId,
           );
           if (success) {
             if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Arava muvaffaqiyatli o'zgartirildi"),
-                  backgroundColor: Colors.green,
-                ),
+              context.showTopSnackBar(
+                const Text("Arava muvaffaqiyatli biriktirildi"),
+                backgroundColor: Colors.green,
               );
             }
           } else {
             if (context.mounted) {
               final error = context.read<OrdersProvider>().error;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text("Xatolik yuz berdi: $error"),
-                  backgroundColor: Colors.red,
-                ),
+              context.showTopSnackBar(
+                Text("Xatolik yuz berdi: $error"),
+                backgroundColor: Colors.red,
+              );
+            }
+          }
+        },
+        onRemove: (cartId) async {
+          final success = await context.read<OrdersProvider>().detachCart(
+            orderId: order.id,
+            cartId: cartId,
+          );
+          if (success) {
+            if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+            if (context.mounted) {
+              context.showTopSnackBar(
+                const Text("Arava olib tashlandi"),
+                backgroundColor: Colors.green,
+              );
+            }
+          } else {
+            if (context.mounted) {
+              final error = context.read<OrdersProvider>().error;
+              context.showTopSnackBar(
+                Text("Xatolik yuz berdi: $error"),
+                backgroundColor: Colors.red,
               );
             }
           }
@@ -116,7 +107,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Error: ${ordersProvider.error}'),
+              Text(
+                'Internet Aloqasini tekshirib ko\'ring',
+                // '${ordersProvider.error}'
+              ),
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: () => context.read<OrdersProvider>().loadOrderDetail(
@@ -146,31 +140,31 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
       );
     }
 
-    final trolleyText = order.trolleyId != null
-        ? _trolleys
-              .firstWhere(
-                (t) => t.id == order.trolleyId,
-                orElse: () => TrolleyOption(
-                  id: order.trolleyId!,
-                  code: order.trolleyId!,
-                  name: order.trolleyId!,
-                ),
-              )
-              .code
-        : '—';
+    // trolleyText removed — summary now renders order.carts directly
 
     final canUpdateTrolley =
         user.role == UserRole.ADMIN ||
         user.role == UserRole.STORE_MANAGER ||
-        user.role == UserRole.SALES_MANAGER ||
         (user.role == UserRole.PICKER &&
-            order.status == OrderStatus.IN_COLLECTION);
+            order.status == OrderStatus.IN_COLLECTION &&
+            order.pickerId == user.id);
 
-    final baseHas = availableTransitions(order.status, user.role.name).isNotEmpty;
-    final pickerRoleAllowed = user.role == UserRole.PICKER && kTransitionRules.any(
-      (t) => t.from == order.status && t.roles.contains('PICKER'),
-    );
-    final hasTransitionAccess = baseHas || pickerRoleAllowed;
+    final baseHas = availableTransitions(
+      order.status,
+      user.role.name,
+    ).isNotEmpty;
+    final pickerRoleAllowed =
+        user.role == UserRole.PICKER &&
+        kTransitionRules.any(
+          (t) => t.from == order.status && t.roles.contains('PICKER'),
+        );
+    final pickerAssignedTransitionAllowed =
+        user.role == UserRole.PICKER &&
+        order.pickerId == user.id &&
+        (order.status == OrderStatus.IN_COLLECTION ||
+            order.status == OrderStatus.PARTIAL);
+    final hasTransitionAccess =
+        baseHas || pickerRoleAllowed || pickerAssignedTransitionAllowed;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -253,90 +247,178 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
               ),
             )
           : null,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Summary block
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-            child: Column(
-              children: [
-                _SummaryRow(
-                  'Mijoz',
-                  order.customer?.name ?? '—',
-                  isBoldValue: true,
-                ),
-                const SizedBox(height: 12),
-                _SummaryRow(
-                  'Sana',
-                  DateFormat('dd.MM.yyyy HH:mm').format(order.createdAt),
-                ),
-                const SizedBox(height: 12),
-                _SummaryRow(
-                  'Arava',
-                  trolleyText,
-                  trailing: canUpdateTrolley
-                      ? GestureDetector(
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Summary block
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
+              child: Column(
+                children: [
+                  _SummaryRow(
+                    'Mijoz',
+                    order.customer?.name ?? '—',
+                    isBoldValue: true,
+                  ),
+                  const SizedBox(height: 12),
+                  _SummaryRow(
+                    'Sana',
+                    DateFormat('dd.MM.yyyy HH:mm').format(order.createdAt),
+                  ),
+                  const SizedBox(height: 12),
+                  // Attached carts list
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 80,
+                        child: Text(
+                          'Arava',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF6B7280),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (order.carts.isEmpty)
+                              const Text('—')
+                            else
+                              ...order.carts.map(
+                                (ct) => Padding(
+                                  padding: const EdgeInsets.only(
+                                    bottom: 6,
+                                    right: 12.0,
+                                  ),
+                                  child: Expanded(
+                                    child: Text(
+                                      "${ct.name ?? ct.code},",
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (canUpdateTrolley)
+                        GestureDetector(
                           onTap: () => _showTrolleyAssignment(context, order),
-                          child: const Text(
-                            "O'zgartirish",
-                            style: TextStyle(
-                              color: Color(0xFF6366F1),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                          child: const Padding(
+                            padding: EdgeInsets.only(left: 8.0),
+                            child: Text(
+                              "O'zgartirish",
+                              style: TextStyle(
+                                color: Color(0xFF6366F1),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
-                        )
-                      : null,
-                ),
-              ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Divider(height: 1, color: Color(0xFFE5E7EB)),
-          // Custom TabBar
-          TabBar(
-            controller: _tabController,
-            labelColor: const Color(0xFF6366F1),
-            unselectedLabelColor: const Color(0xFF9CA3AF),
-            indicatorColor: const Color(0xFF6366F1),
-            indicatorSize: TabBarIndicatorSize.label,
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
-            ),
-            tabs: [
-              Tab(text: 'Mahsulotlar (${order.items.length})'),
-              Tab(text: 'Audit (${ordersProvider.auditLogs.length})'),
-            ],
-          ),
-          const Divider(height: 1, color: Color(0xFFE5E7EB)),
-          // TabBarView
-          Expanded(
-            child: TabBarView(
+            const Divider(height: 1, color: Color(0xFFE5E7EB)),
+            // Custom TabBar
+            TabBar(
               controller: _tabController,
-              children: [
-                _ItemsTab(order: order, user: user),
-                _AuditTab(orderId: widget.orderId),
+              labelColor: const Color(0xFF6366F1),
+              unselectedLabelColor: const Color(0xFF9CA3AF),
+              indicatorColor: const Color(0xFF6366F1),
+              indicatorSize: TabBarIndicatorSize.label,
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+              tabs: [
+                Tab(text: 'Mahsulotlar (${order.items.length})'),
+                Tab(text: 'Audit (${ordersProvider.auditLogs.length})'),
               ],
             ),
-          ),
-        ],
+            const Divider(height: 1, color: Color(0xFFE5E7EB)),
+            // TabBarView
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _ItemsTab(order: order, user: user),
+                  _AuditTab(orderId: widget.orderId),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ─── Trolley Assignment Dialog ───────────────────────────────────────────────────
+// ─── Trolley Assignment Dialog (backend-backed) ───────────────────────────────
 
-class _TrolleyDialog extends StatelessWidget {
+class _TrolleyDialog extends StatefulWidget {
   final OrderDetail order;
-  final ValueChanged<String?> onAssign;
+  final ValueChanged<String> onAssign;
+  final ValueChanged<String> onRemove;
 
-  const _TrolleyDialog({required this.order, required this.onAssign});
+  const _TrolleyDialog({
+    required this.order,
+    required this.onAssign,
+    required this.onRemove,
+  });
+
+  @override
+  State<_TrolleyDialog> createState() => _TrolleyDialogState();
+}
+
+class _TrolleyDialogState extends State<_TrolleyDialog> {
+  bool _loading = true;
+  List<Map<String, dynamic>> _carts = [];
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCarts();
+  }
+
+  Future<void> _loadCarts() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final provider = context.read<OrdersProvider>();
+      final list = await provider.fetchAvailableCarts(
+        branchId: widget.order.branchId,
+      );
+      setState(() {
+        _carts = list;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -357,29 +439,50 @@ class _TrolleyDialog extends StatelessWidget {
               "Ushbu buyurtma uchun arava tanlang:",
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
-            const SizedBox(height: 16),
-            ..._trolleys.map(
-              (t) => ListTile(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                title: Text(t.name),
-                subtitle: Text(t.code),
-                trailing: order.trolleyId == t.id
-                    ? const Icon(Icons.check_circle, color: Color(0xFF6366F1))
-                    : null,
-                onTap: () => onAssign(t.id),
-              ),
-            ),
-            if (order.trolleyId != null) ...[
+            const SizedBox(height: 12),
+            if (_loading)
+              const Center(child: CircularProgressIndicator())
+            else if (_error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text('Xatolik: $_error'),
+              )
+            else if (_carts.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.0),
+                child: Text('Mavjud aravalar topilmadi'),
+              )
+            else
+              ..._carts.map((c) {
+                final id = c['id']?.toString() ?? c['cartId']?.toString() ?? '';
+                final code =
+                    c['code']?.toString() ?? c['cartNumber']?.toString() ?? id;
+                final name = c['name']?.toString() ?? code;
+                return ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  title: Text(name),
+                  // subtitle: Text(code),
+                  trailing:
+                      (widget.order.carts.isNotEmpty &&
+                          widget.order.carts.any((ct) => ct.id == id))
+                      ? const Icon(Icons.check_circle, color: Color(0xFF6366F1))
+                      : null,
+                  onTap: () => widget.onAssign(id),
+                );
+              }),
+            if (widget.order.carts.isNotEmpty) ...[
               const Divider(),
-              ListTile(
-                title: const Text(
-                  "Aravani olib tashlash",
-                  style: TextStyle(color: Colors.red),
+              ...widget.order.carts.map(
+                (ct) => ListTile(
+                  title: Text(ct.name ?? ct.code),
+                  subtitle: Text(ct.code),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: () => widget.onRemove(ct.id),
+                  ),
                 ),
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
-                onTap: () => onAssign(null),
               ),
             ],
             const SizedBox(height: 8),
@@ -406,14 +509,9 @@ class _SummaryRow extends StatelessWidget {
   final String label;
   final String value;
   final bool isBoldValue;
-  final Widget? trailing;
+  // final Widget? trailing;
 
-  const _SummaryRow(
-    this.label,
-    this.value, {
-    this.isBoldValue = false,
-    this.trailing,
-  });
+  const _SummaryRow(this.label, this.value, {this.isBoldValue = false});
 
   @override
   Widget build(BuildContext context) {
@@ -438,7 +536,7 @@ class _SummaryRow extends StatelessWidget {
             color: Colors.black87,
           ),
         ),
-        if (trailing != null) ...[const Spacer(), trailing!],
+        // if (trailing != null) ...[const Spacer(), trailing!],
       ],
     );
   }
@@ -458,10 +556,34 @@ class _ItemsTab extends StatefulWidget {
 
 class _ItemsTabState extends State<_ItemsTab> {
   final Map<String, bool> _updatingItems = {};
+  final Map<String, TextEditingController> _quantityControllers = {};
+  final Map<String, FocusNode> _quantityFocusNodes = {};
+  final Set<String> _quantityFocusListenersAttached = {};
+
+  @override
+  void dispose() {
+    for (final controller in _quantityControllers.values) {
+      controller.dispose();
+    }
+    for (final node in _quantityFocusNodes.values) {
+      node.dispose();
+    }
+    super.dispose();
+  }
 
   Future<void> _updateQuantity(OrderItem item, int newCollected) async {
     final itemId = item.id;
     if (_updatingItems[itemId] == true) return;
+    // Pickers are not allowed to change item quantities (only backorder fields).
+    if (widget.user.role == UserRole.PICKER) {
+      if (context.mounted) {
+        context.showTopSnackBar(
+          const Text('Pickers cannot change item quantities.'),
+          backgroundColor: Colors.red,
+        );
+      }
+      return;
+    }
 
     setState(() => _updatingItems[itemId] = true);
     try {
@@ -482,9 +604,7 @@ class _ItemsTabState extends State<_ItemsTab> {
 
       if (!success && mounted) {
         final error = context.read<OrdersProvider>().error;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Xatolik: $error')));
+        context.showTopSnackBar(Text('Xatolik: $error'));
       }
     } finally {
       if (mounted) {
@@ -609,12 +729,16 @@ class _ItemsTabState extends State<_ItemsTab> {
       );
     }
 
-    // Checking edit permission
-    final canEdit =
-        widget.user.role == UserRole.ADMIN ||
-        widget.user.role == UserRole.STORE_MANAGER ||
-        widget.user.role == UserRole.SALES_MANAGER ||
-        widget.user.role == UserRole.PICKER;
+    // Checking edit permission.
+    // Pickers may only edit their own assigned order while it is in
+    // IN_COLLECTION or PARTIAL, and they only update stock/backorder state.
+    final canEdit = widget.user.role == UserRole.PICKER
+        ? widget.order.pickerId == widget.user.id &&
+              (widget.order.status == OrderStatus.IN_COLLECTION ||
+                  widget.order.status == OrderStatus.PARTIAL)
+        : widget.user.role == UserRole.ADMIN ||
+              widget.user.role == UserRole.STORE_MANAGER ||
+              widget.user.role == UserRole.SALES_MANAGER;
 
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -624,6 +748,35 @@ class _ItemsTabState extends State<_ItemsTab> {
         final item = widget.order.items[index];
         final collected = item.quantity - (item.backorderedQuantity ?? 0);
         final isUpdating = _updatingItems[item.id] == true;
+        final controller = _quantityControllers.putIfAbsent(
+          item.id,
+          () => TextEditingController(text: collected.toString()),
+        );
+        final focusNode = _quantityFocusNodes.putIfAbsent(
+          item.id,
+          () => FocusNode(),
+        );
+        // Commit on focus lost so tapping away saves the typed value.
+        if (!_quantityFocusListenersAttached.contains(item.id)) {
+          focusNode.addListener(() {
+            if (!focusNode.hasFocus) {
+              final parsed = int.tryParse(controller.text) ?? collected;
+              final next = parsed.clamp(1, item.quantity.toInt());
+              if (next != collected) {
+                _updateQuantity(item, next);
+              }
+            }
+          });
+          _quantityFocusListenersAttached.add(item.id);
+        }
+        // Sync controller only when the field is not focused to avoid
+        // clobbering user input while typing.
+        if (!focusNode.hasFocus && controller.text != collected.toString()) {
+          controller.text = collected.toString();
+          controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: controller.text.length),
+          );
+        }
 
         return Container(
           clipBehavior: Clip.hardEdge,
@@ -706,6 +859,7 @@ class _ItemsTabState extends State<_ItemsTab> {
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               GestureDetector(
                                 onTap:
@@ -741,12 +895,61 @@ class _ItemsTabState extends State<_ItemsTab> {
                                   ),
                                 )
                               else
-                                Text(
-                                  '$collected',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: Colors.black87,
+                                SizedBox(
+                                  width: 56,
+                                  height: 34,
+                                  child: TextField(
+                                    enabled: canEdit,
+                                    focusNode: focusNode,
+                                    controller: controller,
+                                    textAlign: TextAlign.center,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                    ],
+                                    decoration: const InputDecoration(
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        vertical: 8,
+                                        horizontal: 4,
+                                      ),
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      focusColor: Colors.transparent,
+                                      fillColor: Colors.transparent,
+                                      border: InputBorder.none,
+                                    ),
+                                    onChanged: (value) {
+                                      final parsed = int.tryParse(value) ?? 0;
+                                      final next = parsed.clamp(
+                                        0,
+                                        item.quantity.toInt(),
+                                      );
+                                      if (next.toString() != value) {
+                                        controller.text = next.toString();
+                                        controller.selection =
+                                            TextSelection.fromPosition(
+                                              TextPosition(
+                                                offset: controller.text.length,
+                                              ),
+                                            );
+                                      }
+                                      setState(() {});
+                                    },
+                                    onEditingComplete: () {
+                                      if (!canEdit) return;
+                                      final parsed =
+                                          int.tryParse(controller.text) ??
+                                          collected;
+                                      final next = parsed.clamp(
+                                        1,
+                                        item.quantity.toInt(),
+                                      );
+                                      if (next != collected) {
+                                        _updateQuantity(item, next);
+                                      }
+                                      FocusScope.of(context).unfocus();
+                                    },
                                   ),
                                 ),
                               GestureDetector(
@@ -779,35 +982,35 @@ class _ItemsTabState extends State<_ItemsTab> {
                         _getItemStatusBadge(item),
                       ],
                     ),
-                  //   if (collected == 0 && !isUpdating) ...[
-                  //     const SizedBox(height: 4),
-                  //     const Padding(
-                  //       padding: EdgeInsets.only(right: 0.0),
-                  //       child: Text(
-                  //         "Yo'q",
-                  //         style: TextStyle(
-                  //           color: Color(0xFFEF4444),
-                  //           fontWeight: FontWeight.w700,
-                  //           fontSize: 11,
-                  //         ),
-                  //       ),
-                  //     ),
-                  //   ],
-                  //   if (collected > 0 && collected < item.quantity && !isUpdating) ...[
-                  //     const SizedBox(height: 4),
-                  //     const Padding(
-                  //       padding: EdgeInsets.only(right: 0.0),
-                  //       child: Text(
-                  //         "Qisman mavjud",
-                  //         style: TextStyle(
-                  //           color: Color(0xFFF59E0B),
-                  //           fontWeight: FontWeight.w700,
-                  //           fontSize: 11,
-                  //         ),
-                  //       ),
-                  //     ),
-                  // ],
-                  ]
+                    //   if (collected == 0 && !isUpdating) ...[
+                    //     const SizedBox(height: 4),
+                    //     const Padding(
+                    //       padding: EdgeInsets.only(right: 0.0),
+                    //       child: Text(
+                    //         "Yo'q",
+                    //         style: TextStyle(
+                    //           color: Color(0xFFEF4444),
+                    //           fontWeight: FontWeight.w700,
+                    //           fontSize: 11,
+                    //         ),
+                    //       ),
+                    //     ),
+                    //   ],
+                    //   if (collected > 0 && collected < item.quantity && !isUpdating) ...[
+                    //     const SizedBox(height: 4),
+                    //     const Padding(
+                    //       padding: EdgeInsets.only(right: 0.0),
+                    //       child: Text(
+                    //         "Qisman mavjud",
+                    //         style: TextStyle(
+                    //           color: Color(0xFFF59E0B),
+                    //           fontWeight: FontWeight.w700,
+                    //           fontSize: 11,
+                    //         ),
+                    //       ),
+                    //     ),
+                    // ],
+                  ],
                 ),
               ],
             ),

@@ -115,7 +115,8 @@ class PickerProvider extends ChangeNotifier {
 
   // ─── Trolley ───────────────────────────────────────────────────────────────
 
-  String? getTrolley(String orderId) => trolleyService.getTrolleyForOrder(orderId);
+  String? getTrolley(String orderId) =>
+      trolleyService.getTrolleyForOrder(orderId);
 
   Future<void> assignTrolley(String orderId, String trolleyCode) async {
     await trolleyService.assign(orderId: orderId, trolleyCode: trolleyCode);
@@ -150,8 +151,11 @@ class PickerProvider extends ChangeNotifier {
 
   void _updateInList(OrderDetail d) {
     final idx = _orders.indexWhere((o) => o.id == d.id);
-    if (idx != -1) _orders[idx] = d;
-    else _orders.insert(0, d);
+    if (idx != -1) {
+      _orders[idx] = d;
+    } else {
+      _orders.insert(0, d);
+    }
   }
 
   void clearError() {
