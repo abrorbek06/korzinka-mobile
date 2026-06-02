@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:korzinkab_mobile/l10n/app_localizations.dart';
+import '../utils/l10n_extensions.dart';
 import '../models/order_model.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
@@ -201,17 +203,17 @@ class _TransitionSheetState extends State<TransitionSheet> {
     // }
     setState(() => _errorMessage = null);
     if (_selected!.requiresPickerId && _selectedPicker == null) {
-      _showError('Please select a picker for this transition.');
+      _showError(AppLocalizations.of(context)!.needToSelectPicker);
       return;
     }
     if (_selected!.requiresTrolleyId &&
         _trolleyIdController.text.trim().isEmpty) {
-      _showError('Trolley ID is required for this transition.');
+      _showError(AppLocalizations.of(context)!.trolleyIdRequired);
       return;
     }
     if (_selected!.requiresPaid &&
         widget.order.paymentStatus != PaymentStatus.PAID) {
-      _showError('Order must be marked PAID before this transition.');
+      _showError(AppLocalizations.of(context)!.orderMustBePaid);
       return;
     }
     // Some transitions require a backorder quantity selection.
@@ -241,7 +243,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
     // PARTIAL → READY requires arrivedItemIds payload
     if (_selected!.requiresArrivedItemIds) {
       if (_selectedArrivedItemIds.isEmpty) {
-        _showError('Please mark all backordered items as arrived.');
+        _showError(AppLocalizations.of(context)!.allBackorderedMustArrive);
         return;
       }
       final backorderedIds = widget.order.items
@@ -251,7 +253,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
       if (_selectedArrivedItemIds.length != backorderedIds.length ||
           !_selectedArrivedItemIds.every(backorderedIds.contains)) {
         _showError(
-          'All backordered items must be marked arrived before moving to READY.',
+          AppLocalizations.of(context)!.allBackorderedMustArrive,
         );
         return;
       }
@@ -386,12 +388,12 @@ class _TransitionSheetState extends State<TransitionSheet> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Order Actions',
+                          AppLocalizations.of(context)!.orderActions,
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          widget.order.code ?? 'Draft Order',
+                          widget.order.code ?? AppLocalizations.of(context)!.draftOrder,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -459,7 +461,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              'No transitions available\nfor your role at this stage.',
+                              AppLocalizations.of(context)!.noTransitions,
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: AppTheme.onSurfaceMuted,
@@ -471,7 +473,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
                       ),
                     ] else ...[
                       Text(
-                        'Statusni tanlang',
+                        AppLocalizations.of(context)!.selectStatus,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
@@ -579,9 +581,9 @@ class _TransitionSheetState extends State<TransitionSheet> {
                               )
                             : DropdownButtonFormField<PickerUser>(
                                 initialValue: _selectedPicker,
-                                decoration: const InputDecoration(
-                                  labelText: 'Picker ni tanlang *',
-                                  prefixIcon: Icon(
+                            decoration: InputDecoration(
+                                  labelText: AppLocalizations.of(context)!.selectPicker,
+                                  prefixIcon: const Icon(
                                     Icons.person_search_outlined,
                                   ),
                                 ),
@@ -612,10 +614,10 @@ class _TransitionSheetState extends State<TransitionSheet> {
                       if (_selected?.requiresTrolleyId == true) ...[
                         TextFormField(
                           controller: _trolleyIdController,
-                          decoration: const InputDecoration(
-                            labelText: 'Arava ID *',
-                            prefixIcon: Icon(Icons.local_shipping_outlined),
-                            hintText: 'Arava ID kiriting',
+                          decoration: InputDecoration(
+                            labelText: AppLocalizations.of(context)!.trolleyId,
+                            prefixIcon: const Icon(Icons.local_shipping_outlined),
+                            hintText: AppLocalizations.of(context)!.enterTrolleyId,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -623,7 +625,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
 
                       if (_selected?.requiresArrivedItemIds == true) ...[
                         Text(
-                          'Barcha backordered mahsulotlar mavjud bo‘lishi kerak.',
+                          AppLocalizations.of(context)!.allBackorderedAvailable,
                           style: Theme.of(context).textTheme.labelSmall,
                         ),
                         const SizedBox(height: 8),
@@ -659,7 +661,10 @@ class _TransitionSheetState extends State<TransitionSheet> {
                                 ),
                                 title: Text(item.productName),
                                 subtitle: Text(
-                                  'Miqdor: ${item.quantity.toInt()} dona',
+                                  AppLocalizations.of(context)!.quantityCount(
+                                    item.quantity.toInt(),
+                                    AppLocalizations.of(context)!.units,
+                                  ),
                                   style: const TextStyle(fontSize: 12),
                                 ),
                               );
@@ -670,7 +675,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
                       const SizedBox(height: 16),
                       if (_selected?.requiresBackorderedItems == true) ...[
                         Text(
-                          'BOR MAHSULOTLAR',
+                          AppLocalizations.of(context)!.availableProducts,
                           style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.w700,
@@ -719,7 +724,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
                                         ),
                                       ),
                                       subtitle: Text(
-                                        'Kerak: ${item.quantity.toInt()} dona',
+                                        '${AppLocalizations.of(context)!.needed}: ${item.quantity.toInt()} ${AppLocalizations.of(context)!.units}',
                                       ),
                                       value: isSelected,
                                       onChanged: (value) {
@@ -952,8 +957,10 @@ class _TransitionSheetState extends State<TransitionSheet> {
                                     const SizedBox(width: 8),
                                     Text(
                                       _selected != null
-                                          ? '${_selected!.to.displayNameUz} holatiga o‘tkazish'
-                                          : 'Holatni tanlang',
+                                          ? AppLocalizations.of(context)!.moveToStatus(
+                                              _selected!.to.localizedName(context),
+                                            )
+                                          : AppLocalizations.of(context)!.selectStatus,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -968,9 +975,9 @@ class _TransitionSheetState extends State<TransitionSheet> {
                           onPressed: _submitting
                               ? null
                               : () => Navigator.of(context).pop(),
-                          child: const Text(
-                            'Bekor qilish',
-                            style: TextStyle(
+                          child: Text(
+                            AppLocalizations.of(context)!.cancel,
+                            style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF6366F1),
                             ),
@@ -1049,7 +1056,7 @@ class _TransitionOption extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        toStatus.displayNameUz,
+                        toStatus.localizedName(context),
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -1058,7 +1065,7 @@ class _TransitionOption extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _statusDescription(),
+                        _statusDescription(context),
                         style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.onSurfaceMuted,
@@ -1072,7 +1079,7 @@ class _TransitionOption extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(
-                            _requirementText(),
+                            _requirementText(context),
                             style: const TextStyle(
                               fontSize: 11,
                               color: AppTheme.onSurfaceMuted,
@@ -1092,33 +1099,35 @@ class _TransitionOption extends StatelessWidget {
     );
   }
 
-  String _statusDescription() {
+  String _statusDescription(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     switch (definition.to) {
       case OrderStatus.READY:
-        return 'Barcha mahsulotlar mavjud';
+        return l10n.allProductsAvailable;
       case OrderStatus.PARTIAL:
-        return 'Ba’zi mahsulotlar yetishmayapti';
+        return l10n.someProductsMissing;
       case OrderStatus.CANCELLED:
-        return 'Buyurtma bekor qilinadi';
+        return l10n.orderWillBeCancelled;
       case OrderStatus.IN_COLLECTION:
-        return 'Yig‘ish jarayonida';
+        return l10n.inCollectionProcess;
       case OrderStatus.CONFIRMED:
-        return 'Buyurtma tasdiqlangan';
+        return l10n.orderConfirmed;
       default:
         return '';
     }
   }
 
-  String _requirementText() {
+  String _requirementText(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final parts = <String>[];
-    if (definition.requiresPickerId) parts.add('Picker tanlash kerak');
-    if (definition.requiresTrolleyId) parts.add('Arava ID kerak');
+    if (definition.requiresPickerId) parts.add(l10n.needToSelectPicker);
+    if (definition.requiresTrolleyId) parts.add(l10n.trolleyIdRequired);
     if (definition.requiresBackorderedItems) {
-      parts.add('Yetishmayotgan miqdor kerak');
+      parts.add(l10n.missingQuantityRequired);
     }
-    if (definition.requiresPaid) parts.add('Buyurtma PAID bo‘lishi kerak');
+    if (definition.requiresPaid) parts.add(l10n.orderMustBePaid);
     if (definition.requiresArrivedItemIds) {
-      parts.add('Barcha backordered mahsulotlar yetishi kerak');
+      parts.add(l10n.allBackorderedMustArrive);
     }
     return parts.join(' · ');
   }
@@ -1168,7 +1177,7 @@ class _PaymentActionsState extends State<_PaymentActions> {
           OutlinedButton.icon(
             onPressed: _loading ? null : () => _action(mark: true),
             icon: const Icon(Icons.payment, size: 18),
-            label: const Text('Mark as Paid'),
+            label: Text(AppLocalizations.of(context)!.markAsPaid),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF43A047),
               side: const BorderSide(color: Color(0xFF43A047)),
@@ -1179,7 +1188,7 @@ class _PaymentActionsState extends State<_PaymentActions> {
           OutlinedButton.icon(
             onPressed: _loading ? null : () => _action(mark: false),
             icon: const Icon(Icons.money_off, size: 18),
-            label: const Text('Unmark Paid'),
+            label: Text(AppLocalizations.of(context)!.unmarkPaid),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFFF57C00),
               side: const BorderSide(color: Color(0xFFF57C00)),
@@ -1222,7 +1231,7 @@ class _StatusChip extends StatelessWidget {
           Icon(status.icon, size: 13, color: status.color),
           const SizedBox(width: 5),
           Text(
-            status.displayName,
+            status.localizedName(context),
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,

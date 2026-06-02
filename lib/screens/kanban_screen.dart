@@ -1,8 +1,9 @@
-import 'dart:convert';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../config/app_config.dart';
+import 'package:korzinkab_mobile/l10n/app_localizations.dart';
+import '../providers/settings_provider.dart';
+import '../utils/l10n_extensions.dart';
 import '../models/order_model.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
@@ -22,75 +23,21 @@ class KanbanScreen extends StatefulWidget {
 
 class _KanbanScreenState extends State<KanbanScreen> {
   // Which columns to show (terminal columns hidden by default for cleaner view)
-  final Set<OrderStatus> _hiddenStatuses = {OrderStatus.CANCELLED};
   bool _assignedOnly = false;
-  bool _statusChangeViaDropdown = true;
   OrderStatus? _selectedStatus;
 
   @override
   void initState() {
     super.initState();
     _selectedStatus = _columnOrder.firstWhere(
-      (s) => !_hiddenStatuses.contains(s),
+      (s) => s != OrderStatus.CANCELLED,
       orElse: () => OrderStatus.DRAFT,
     );
-    _loadHiddenStatuses();
-    _loadStatusChangePreference();
   }
 
-  Future<void> _loadHiddenStatuses() async {
-    final prefs = await SharedPreferences.getInstance();
-    final hiddenStatusesJson = prefs.getString(AppConfig.hiddenStatusesKey);
-    if (hiddenStatusesJson != null) {
-      final List<String> statusStrings =
-          (jsonDecode(hiddenStatusesJson) as List).cast<String>();
-      setState(() {
-        _hiddenStatuses.clear();
-        for (final statusStr in statusStrings) {
-          final status = OrderStatus.values
-              .where((s) => s.name == statusStr)
-              .firstOrNull;
-          if (status != null) {
-            _hiddenStatuses.add(status);
-          }
-        }
-        if (_statusChangeViaDropdown &&
-            !_visibleStatuses.contains(_selectedStatus)) {
-          _selectedStatus = _visibleStatuses.isNotEmpty
-              ? _visibleStatuses.first
-              : OrderStatus.DRAFT;
-        }
-      });
-    }
-  }
 
-  Future<void> _saveHiddenStatuses() async {
-    final prefs = await SharedPreferences.getInstance();
-    final statusStrings = _hiddenStatuses.map((s) => s.name).toList();
-    await prefs.setString(
-      AppConfig.hiddenStatusesKey,
-      jsonEncode(statusStrings),
-    );
-  }
-
-  Future<void> _loadStatusChangePreference() async {
-    final prefs = await SharedPreferences.getInstance();
-    final useDropdown = prefs.getBool(AppConfig.statusChangeMethodKey);
-    if (useDropdown != null) {
-      setState(() {
-        _statusChangeViaDropdown = useDropdown;
-        if (_statusChangeViaDropdown &&
-            !_visibleStatuses.contains(_selectedStatus)) {
-          _selectedStatus = _visibleStatuses.isNotEmpty
-              ? _visibleStatuses.first
-              : OrderStatus.DRAFT;
-        }
-      });
-    }
-  }
-
-  OrderStatus get _currentSelectedStatus {
-    final visible = _visibleStatuses;
+  OrderStatus _currentSelectedStatus(SettingsProvider settings) {
+    final visible = settings.visibleStatuses;
     if (visible.isEmpty) {
       return OrderStatus.DRAFT;
     }
@@ -106,73 +53,6 @@ class _KanbanScreenState extends State<KanbanScreen> {
     });
   }
 
-  Future<void> _saveStatusChangePreference(bool useDropdown) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(AppConfig.statusChangeMethodKey, useDropdown);
-  }
-
-  Future<void> _selectStatusChangeMethod(BuildContext context) async {
-    var localSelection = _statusChangeViaDropdown;
-
-    await showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Status o\'zgartirish usuli',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
-                  RadioListTile<bool>(
-                    title: const Text('Dropdown orqali'),
-                    value: true,
-                    groupValue: localSelection,
-                    onChanged: (value) {
-                      if (value != null) {
-                        setModalState(() {
-                          localSelection = value;
-                        });
-                      }
-                    },
-                  ),
-                  RadioListTile<bool>(
-                    title: const Text('Swipe/drag orqali'),
-                    value: false,
-                    groupValue: localSelection,
-                    onChanged: (value) {
-                      if (value != null) {
-                        setModalState(() {
-                          localSelection = value;
-                        });
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: () async {
-                      Navigator.of(context).pop();
-                      setState(() {
-                        _statusChangeViaDropdown = localSelection;
-                      });
-                      await _saveStatusChangePreference(localSelection);
-                    },
-                    child: const Text('Saqlash'),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   static const List<OrderStatus> _columnOrder = [
     OrderStatus.DRAFT,
     OrderStatus.CONFIRMED,
@@ -182,9 +62,6 @@ class _KanbanScreenState extends State<KanbanScreen> {
     OrderStatus.COMPLETED,
     OrderStatus.CANCELLED,
   ];
-
-  List<OrderStatus> get _visibleStatuses =>
-      _columnOrder.where((s) => !_hiddenStatuses.contains(s)).toList();
 
   List<OrderListItem> _applyAssignedFilter(
     List<OrderListItem> items,
@@ -248,7 +125,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
     if (!hasPermission && !pickerOverride && !pickerRoleAllowed) {
       context.showTopSnackBar(
         Text(
-          'You do not have permission to move to ${targetStatus.displayName}',
+          'No permission to move to ${targetStatus.localizedName(context)}',
         ),
         backgroundColor: Theme.of(context).colorScheme.error,
       );
@@ -291,353 +168,56 @@ class _KanbanScreenState extends State<KanbanScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final orders = context.watch<OrdersProvider>();
+    final settings = context.watch<SettingsProvider>();
     final user = auth.user!;
 
-    final boardStatuses = _statusChangeViaDropdown
-        ? [_currentSelectedStatus]
-        : _visibleStatuses;
+    final boardStatuses = settings.statusChangeViaDropdown
+        ? [_currentSelectedStatus(settings)]
+        : settings.visibleStatuses;
     final filteredColumns = {
       for (final status in boardStatuses)
         status: _applyAssignedFilter(orders.columns[status] ?? [], user),
     };
     final statusCounts = {
-      for (final status in _visibleStatuses)
+      for (final status in settings.visibleStatuses)
         status: _applyAssignedFilter(orders.columns[status] ?? [], user).length,
     };
     final visibleOrderCount = filteredColumns.values.fold<int>(
       0,
       (sum, list) => sum + list.length,
     );
-    // Compute assigned count independent of the current `_assignedOnly` toggle
-    final allOrdersFlat = orders.columns.values.expand((e) => e).toList();
-    final assignedCount = user.role == UserRole.PICKER
-        ? allOrdersFlat.where((item) => item.pickerId == user.id).length
-        : allOrdersFlat.where((item) => item.salesManagerId == user.id).length;
 
     return Scaffold(
       backgroundColor: AppTheme.surface,
       appBar: AppBar(
         leadingWidth: 0,
-        title: IconButton(
-          icon: const Icon(Icons.account_circle_outlined),
-          onPressed: () {
-            // User profile and logout + quick tabs
-            showModalBottomSheet(
-              context: context,
-              builder: (_) => StatefulBuilder(
-                builder: (context, setModalState) {
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 24,
-                                  backgroundColor: AppTheme.primary,
-                                  child: Text(
-                                    user.username.substring(0, 1).toUpperCase(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      user.username,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    Text(
-                                      user.role.displayName,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppTheme.onSurfaceMuted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            ElevatedButton(
-                              style: ButtonStyle(
-                                backgroundColor: WidgetStateProperty.all(
-                                  Colors.transparent,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.logout,
-                                    color: Colors.redAccent,
-                                  ),
-                                  // const SizedBox(width: 8),
-                                  // Text(
-                                  //   'Chiqish',
-                                  //   style: TextStyle(
-                                  //     fontSize: 14,
-                                  //     fontWeight: FontWeight.w700,
-                                  //     color: Colors.redAccent,
-                                  //   ),
-                                  // ),
-                                ],
-                              ),
-                              onPressed: () {
-                                context.read<AuthProvider>().logout();
-                                Navigator.pushReplacementNamed(
-                                  context,
-                                  '/login',
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        // Row(
-                        //   children: [
-                        //     _TabPill(
-                        //       label: "Menga biriktirilgan",
-                        //       count: assignedCount,
-                        //       selected: _assignedOnly,
-                        //       onTap: () {
-                        //         setModalState(() {});
-                        //         setState(() => _assignedOnly = true);
-                        //       },
-                        //     ),
-                        //     const SizedBox(width: 8),
-                        //     _TabPill(
-                        //       label: "Barchasi",
-                        //       count: orders.totalOrdersCount(),
-                        //       selected: !_assignedOnly,
-                        //       onTap: () {
-                        //         setModalState(() {});
-                        //         setState(() => _assignedOnly = false);
-                        //       },
-                        //     ),
-                        //   ],
-                        // ),
-                        // const SizedBox(height: 16),
-                        // Align(
-                        //   alignment: Alignment.centerLeft,
-                        //   child: Text(
-                        //     'Ko‘rinadigan statuslar',
-                        //     style: TextStyle(
-                        //       fontSize: 14,
-                        //       fontWeight: FontWeight.w700,
-                        //       color: AppTheme.onSurface,
-                        //     ),
-                        //   ),
-                        // ),
-                        // const SizedBox(height: 6),
-                        // _ColumnFilters(
-                        //   visibleStatuses: _visibleStatuses,
-                        //   onToggle: (status) {
-                        //     setModalState(() {});
-                        //     setState(() {
-                        //       if (_hiddenStatuses.contains(status)) {
-                        //         _hiddenStatuses.remove(status);
-                        //       } else {
-                        //         _hiddenStatuses.add(status);
-                        //       }
-                        //       if (_statusChangeViaDropdown &&
-                        //           !_visibleStatuses.contains(_selectedStatus)) {
-                        //         _selectedStatus = _visibleStatuses.isNotEmpty
-                        //             ? _visibleStatuses.first
-                        //             : null;
-                        //       }
-                        //     });
-                        //     _saveHiddenStatuses();
-                        //   },
-                        // ),
-                        // const SizedBox(height: 12),
-                        // Align(
-                        //   alignment: Alignment.centerLeft,
-                        //   child: Text(
-                        //     'Status o\'zgartirish usuli',
-                        //     style: TextStyle(
-                        //       fontSize: 14,
-                        //       fontWeight: FontWeight.w700,
-                        //       color: AppTheme.onSurface,
-                        //     ),
-                        //   ),
-                        // ),
-                        // const SizedBox(height: 6),
-                        // Row(
-                        //   children: [
-                        //     _TabPill(
-                        //       label: "Dropdown",
-                        //       selected: _statusChangeViaDropdown,
-                        //       onTap: () async {
-                        //         setModalState(() {});
-                        //         setState(() {
-                        //           _statusChangeViaDropdown = true;
-                        //         });
-                        //         await _saveStatusChangePreference(true);
-                        //       },
-                        //     ),
-                        //     const SizedBox(width: 8),
-                        //     _TabPill(
-                        //       label: "Swipe",
-                        //       selected: !_statusChangeViaDropdown,
-                        //       onTap: () async {
-                        //         setModalState(() {});
-                        //         setState(() {
-                        //           _statusChangeViaDropdown = false;
-                        //         });
-                        //         await _saveStatusChangePreference(false);
-                        //       },
-                        //     ),
-                        //   ],
-                        // ),
-                        // const SizedBox(height: 8),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            );
-          },
+        elevation: 0,
+        title: Text(
+          AppLocalizations.of(context)!.kanban,
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search_outlined),
+            icon: const Icon(CupertinoIcons.search),
             onPressed: () {
               context.showTopSnackBar(
-                const Text('Qidiruv funktsiyasi hozircha mavjud emas.'),
+                Text(AppLocalizations.of(context)!.searchNotAvailable),
               );
             },
           ),
+          // Assigned to me toggle
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
+            icon: Icon(
+              _assignedOnly ? Icons.people : Icons.people_alt_outlined,
+              color: _assignedOnly ? AppTheme.primary : null,
+            ),
+            tooltip: AppLocalizations.of(context)!.assignedToMe,
             onPressed: () {
-              showModalBottomSheet(
-                context: context,
-                builder: (_) => StatefulBuilder(
-                  builder: (context, setModalState) {
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              _TabPill(
-                                label: "Menga biriktirilgan",
-                                count: assignedCount,
-                                selected: _assignedOnly,
-                                onTap: () {
-                                  setModalState(() {});
-                                  setState(() => _assignedOnly = true);
-                                },
-                              ),
-                              const SizedBox(width: 8),
-                              _TabPill(
-                                label: "Barchasi",
-                                count: orders.totalOrdersCount(),
-                                selected: !_assignedOnly,
-                                onTap: () {
-                                  setModalState(() {});
-                                  setState(() => _assignedOnly = false);
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'Ko‘rinadigan statuslar',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.onSurface,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          _ColumnFilters(
-                            visibleStatuses: _visibleStatuses,
-                            onToggle: (status) {
-                              setModalState(() {});
-                              setState(() {
-                                if (_hiddenStatuses.contains(status)) {
-                                  _hiddenStatuses.remove(status);
-                                } else {
-                                  _hiddenStatuses.add(status);
-                                }
-                                if (_statusChangeViaDropdown &&
-                                    !_visibleStatuses.contains(
-                                      _selectedStatus,
-                                    )) {
-                                  _selectedStatus = _visibleStatuses.isNotEmpty
-                                      ? _visibleStatuses.first
-                                      : null;
-                                }
-                              });
-                              _saveHiddenStatuses();
-                            },
-                          ),
-                          const SizedBox(height: 24),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              'Status o\'zgartirish usuli',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.onSurface,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              _TabPill(
-                                label: "Dropdown",
-                                selected: _statusChangeViaDropdown,
-                                onTap: () async {
-                                  setModalState(() {});
-                                  setState(() {
-                                    _statusChangeViaDropdown = true;
-                                  });
-                                  await _saveStatusChangePreference(true);
-                                },
-                              ),
-                              const SizedBox(width: 8),
-                              _TabPill(
-                                label: "Swipe",
-                                selected: !_statusChangeViaDropdown,
-                                onTap: () async {
-                                  setModalState(() {});
-                                  setState(() {
-                                    _statusChangeViaDropdown = false;
-                                  });
-                                  await _saveStatusChangePreference(false);
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              );
+              setState(() => _assignedOnly = !_assignedOnly);
             },
           ),
         ],
+      ),
 
         // bottom: PreferredSize(
         //   preferredSize: const Size.fromHeight(52),
@@ -682,13 +262,13 @@ class _KanbanScreenState extends State<KanbanScreen> {
         //     ),
         //   ),
         // ),
-      ),
+      // ),
       body: Column(
         children: [
-          if (_statusChangeViaDropdown && _visibleStatuses.isNotEmpty)
+          if (settings.statusChangeViaDropdown && settings.visibleStatuses.isNotEmpty)
             _StatusTabRow(
-              statuses: _visibleStatuses,
-              selectedStatus: _currentSelectedStatus,
+              statuses: settings.visibleStatuses,
+              selectedStatus: _currentSelectedStatus(settings),
               statusCounts: statusCounts,
               onStatusTap: _setSelectedStatus,
             ),
@@ -731,7 +311,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
                               ),
                               const SizedBox(height: 24),
                               Text(
-                                'Buyurtmalar yuklanmadi',
+                                AppLocalizations.of(context)!.ordersNotLoaded,
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 18,
@@ -746,9 +326,9 @@ class _KanbanScreenState extends State<KanbanScreen> {
                                   Icons.refresh,
                                   color: Color(0xFF6D5BFF),
                                 ),
-                                label: const Text(
-                                  'Yangilash',
-                                  style: TextStyle(
+                                label: Text(
+                                  AppLocalizations.of(context)!.refresh,
+                                  style: const TextStyle(
                                     color: Color(0xFF6D5BFF),
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -767,10 +347,10 @@ class _KanbanScreenState extends State<KanbanScreen> {
                                 ),
                               ),
                             ),
-                            onOrderDrop: _statusChangeViaDropdown
+                            onOrderDrop: settings.statusChangeViaDropdown
                                 ? null
                                 : _onOrderDrop,
-                            onStatusSelected: _statusChangeViaDropdown
+                            onStatusSelected: settings.statusChangeViaDropdown
                                 ? _onOrderDrop
                                 : null,
                           ),
@@ -938,7 +518,7 @@ class _StatusTabRow extends StatelessWidget {
               return SizedBox(
                 width: minPillWidth,
                 child: _TabStatus(
-                  label: status.displayName,
+                  label: status.localizedName(context),
                   selected: status == selectedStatus,
                   count: statusCounts[status],
                   onTap: () => onStatusTap(status),
@@ -951,137 +531,6 @@ class _StatusTabRow extends StatelessWidget {
     );
   }
 }
-
-class _ColumnFilters extends StatelessWidget {
-  final List<OrderStatus> visibleStatuses;
-  final void Function(OrderStatus) onToggle;
-
-  const _ColumnFilters({required this.visibleStatuses, required this.onToggle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      color: AppTheme.surface,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        // padding: const EdgeInsets.symmetric(vertical: 8),
-        children: OrderStatus.values.map((status) {
-          final visible = visibleStatuses.contains(status);
-          return GestureDetector(
-            onTap: () => onToggle(status),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: visible
-                    ? status.color.withOpacity(0.15)
-                    : AppTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: visible
-                      ? status.color.withOpacity(0.5)
-                      : AppTheme.border,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    visible
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    size: 12,
-                    color: visible ? status.color : AppTheme.onSurfaceMuted,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    status.displayName,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: visible ? status.color : AppTheme.onSurfaceMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _TabPill extends StatelessWidget {
-  final String label;
-  final int? count;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _TabPill({
-    required this.label,
-    this.count,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        height: 34,
-        padding: const EdgeInsets.symmetric(horizontal: 7),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primaryLight : AppColors.background,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: selected
-                ? AppColors.primary.withOpacity(0.4)
-                : AppColors.border,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: selected ? AppColors.primary : AppColors.textSecondary,
-                fontFamily: 'Nunito',
-              ),
-            ),
-            if (count != null) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: selected ? AppColors.primary : AppColors.textMuted,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$count',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    fontFamily: 'Nunito',
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _TabStatus extends StatelessWidget {
   final String label;
   final int? count;
@@ -1148,100 +597,6 @@ class _TabStatus extends StatelessWidget {
               ),
             ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusChangeMethodTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  // final String? subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _StatusChangeMethodTile({
-    required this.icon,
-    required this.title,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      decoration: BoxDecoration(
-        color: selected ? AppTheme.primary.withAlpha(25) : AppTheme.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: selected ? AppTheme.primary : AppTheme.border,
-          width: selected ? 1.6 : 1,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Container(
-                //   width: 36,
-                //   height: 36,
-                //   decoration: BoxDecoration(
-                //     color: selected
-                //         ? AppTheme.primary.withAlpha(40)
-                //         : AppTheme.surfaceVariant,
-                //     shape: BoxShape.circle,
-                //   ),
-                //   child: Icon(
-                //     icon,
-                //     size: 18,
-                //     color: selected
-                //         ? AppTheme.primary
-                //         : AppTheme.onSurfaceMuted,
-                //   ),
-                // ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: selected
-                              ? AppTheme.primary
-                              : AppTheme.onSurface,
-                        ),
-                      ),
-                      // if (subtitle != null) ...[
-                      //   const SizedBox(height: 4),
-                      //   Text(
-                      //     subtitle!,
-                      //     style: TextStyle(
-                      //       fontSize: 13,
-                      //       color: AppTheme.onSurfaceMuted,
-                      //     ),
-                      //   ),
-                      // ],
-                    ],
-                  ),
-                ),
-                if (selected)
-                  Icon(Icons.check_circle, size: 20, color: AppTheme.primary),
-              ],
-            ),
-          ),
         ),
       ),
     );

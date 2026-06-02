@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:korzinkab_mobile/l10n/app_localizations.dart';
+import '../utils/l10n_extensions.dart';
 import '../models/order_model.dart';
 import '../theme/app_theme.dart';
 
@@ -48,15 +50,72 @@ class OrdersOrderCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  order.endDate != null
-                      ? DateFormat('HH:mm').format(order.endDate!)
-                      : DateFormat('HH:mm').format(order.createdAt),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.onSurfaceMuted,
+                if (onStatusSelected != null)
+                  PopupMenuButton<OrderStatus>(
+                    onSelected: onStatusSelected,
+                    itemBuilder: (_) => OrderStatus.values
+                        .where((status) => status != order.status)
+                        .map(
+                          (status) => PopupMenuItem<OrderStatus>(
+                        value: status,
+                        child: Row(
+                          children: [
+                            Icon(status.icon, size: 16, color: status.color),
+                            const SizedBox(width: 8),
+                            Text(status.localizedName(context)),
+                          ],
+                        ),
+                      ),
+                    )
+                        .toList(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: order.status.lightColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            order.status.localizedName(context),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: order.status.color,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 16,
+                            color: order.status.color,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: order.status.lightColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      order.status.displayName,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: order.status.color,
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
             // const SizedBox(height: 12),
@@ -79,10 +138,10 @@ class OrdersOrderCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   order.totalItems > 0
-                      ? '${order.totalItems} ta mahsulot'
+                      ? AppLocalizations.of(context)!.productCount(order.totalItems)
                       : order.backorderedItemsCount > 0
-                      ? '${order.backorderedItemsCount} ta mahsulot kerak'
-                      : '0 ta mahsulot kerak',
+                      ? AppLocalizations.of(context)!.productsNeeded(order.backorderedItemsCount)
+                      : AppLocalizations.of(context)!.productCount(0),
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.onSurfaceMuted,
@@ -107,73 +166,16 @@ class OrdersOrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            if (onStatusSelected != null)
-              PopupMenuButton<OrderStatus>(
-                onSelected: onStatusSelected,
-                itemBuilder: (_) => OrderStatus.values
-                    .where((status) => status != order.status)
-                    .map(
-                      (status) => PopupMenuItem<OrderStatus>(
-                        value: status,
-                        child: Row(
-                          children: [
-                            Icon(status.icon, size: 16, color: status.color),
-                            const SizedBox(width: 8),
-                            Text(status.displayName),
-                          ],
-                        ),
-                      ),
-                    )
-                    .toList(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: order.status.lightColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        order.status.displayName,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: order.status.color,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 16,
-                        color: order.status.color,
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: order.status.lightColor,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  order.status.displayName,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: order.status.color,
-                  ),
-                ),
+
+            Text(
+              order.paymentStatus.localizedName(context),
+              style: TextStyle(
+                fontSize: 11,
+                color: AppTheme.onSurfaceMuted,
               ),
+            ),
             const SizedBox(height: 12),
+            Divider(),
             Row(
               children: [
                 Icon(
@@ -190,26 +192,36 @@ class OrdersOrderCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: order.paymentStatus.color.withAlpha(
-                      (0.15 * 255).round(),
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    order.paymentStatus.displayName,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: order.paymentStatus.color,
-                    ),
+                Text(
+                  order.endDate != null
+                      ? DateFormat('HH:mm').format(order.endDate!)
+                      : DateFormat('HH:mm').format(order.createdAt),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.onSurfaceMuted,
                   ),
                 ),
+
+                // Container(
+                //   padding: const EdgeInsets.symmetric(
+                //     horizontal: 8,
+                //     vertical: 4,
+                //   ),
+                //   decoration: BoxDecoration(
+                //     color: order.paymentStatus.color.withAlpha(
+                //       (0.15 * 255).round(),
+                //     ),
+                //     borderRadius: BorderRadius.circular(10),
+                //   ),
+                //   child: Text(
+                //     order.paymentStatus.displayName,
+                //     style: TextStyle(
+                //       fontSize: 11,
+                //       fontWeight: FontWeight.w700,
+                //       color: order.paymentStatus.color,
+                //     ),
+                //   ),
+                // ),
               ],
             ),
           ],

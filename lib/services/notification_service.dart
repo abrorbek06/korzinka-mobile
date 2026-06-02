@@ -44,7 +44,7 @@ class NotificationService {
       android: androidInit,
       iOS: iosInit,
     );
-    await instance._local.initialize(initSettings);
+    await instance._local.initialize(settings: initSettings);
 
     // Request permissions on iOS
     if (!kIsWeb) {
@@ -103,7 +103,7 @@ class NotificationService {
       android: androidDetails,
       iOS: iosDetails,
     );
-    await _local.show(0, title, body, platform);
+    await _local.show(id: 0, title: title, body: body, notificationDetails: platform);
   }
 
   void _handleNewToken(String token) {

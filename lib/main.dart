@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:flutter/services.dart';
-import 'package:korzinkab_mobile/screens/items_screen.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:korzinkab_mobile/l10n/app_localizations.dart';
+import 'package:korzinkab_mobile/screens/profile_screen.dart';
 import 'package:korzinkab_mobile/utils/app_keys.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/orders_provider.dart';
 import 'providers/notifications_provider.dart';
+import 'providers/locale_provider.dart';
+import 'providers/settings_provider.dart';
 import 'services/notification_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/notifications_screen.dart';
@@ -40,18 +44,35 @@ class OrdersKanbanApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
         ChangeNotifierProvider(
           create: (_) => AuthProvider()..tryRestoreSession(),
         ),
         ChangeNotifierProvider(create: (_) => OrdersProvider()),
         ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
       ],
-      child: MaterialApp(
-        title: 'Orders Kanban',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        scaffoldMessengerKey: AppKeys.scaffoldMessengerKey,
-        home: const _AppRoot(),
+      child: Consumer<LocaleProvider>(
+        builder: (context, localeProvider, child) {
+          return MaterialApp(
+            title: 'Orders Kanban',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light,
+            scaffoldMessengerKey: AppKeys.scaffoldMessengerKey,
+            locale: localeProvider.locale,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('uz'),
+              Locale('ru'),
+            ],
+            home: const _AppRoot(),
+          );
+        },
       ),
     );
   }
@@ -118,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
     OrdersListScreen(),
     // ItemsScreen(),
     NotificationsScreen(),
+    ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
@@ -133,60 +155,45 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
+        elevation: 0,
+        type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         backgroundColor: AppTheme.surface,
         selectedItemColor: AppTheme.primary,
         unselectedItemColor: AppTheme.onSurfaceMuted,
+        selectedIconTheme: const IconThemeData(size: 26),
+        unselectedIconTheme: const IconThemeData(size: 26),
         showSelectedLabels: false,
         showUnselectedLabels: false,
         items: [
           BottomNavigationBarItem(
-            icon: SvgPicture.asset(
-              'assets/icons/apps.svg',
-              width: 24,
-              height: 24,
-              colorFilter: ColorFilter.mode(
-                AppTheme.onSurfaceMuted,
-                BlendMode.srcIn,
-              ),
+            icon: const Icon(
+              Icons.view_kanban_outlined,
+              size: 26,
             ),
-            activeIcon: SvgPicture.asset(
-              'assets/icons/apps.svg',
-              width: 24,
-              height: 24,
-              colorFilter: ColorFilter.mode(AppTheme.primary, BlendMode.srcIn),
-            ),
-            label: 'Kanban',
+            label: AppLocalizations.of(context)!.kanban,
           ),
           BottomNavigationBarItem(
-            icon: SvgPicture.asset(
-              'assets/icons/list.svg',
-              width: 24,
-              height: 24,
-              colorFilter: ColorFilter.mode(
-                AppTheme.onSurfaceMuted,
-                BlendMode.srcIn,
-              ),
+            icon: const Icon(
+              Icons.list,
+              size: 26,
             ),
-            activeIcon: SvgPicture.asset(
-              'assets/icons/list.svg',
-              width: 24,
-              height: 24,
-              colorFilter: ColorFilter.mode(AppTheme.primary, BlendMode.srcIn),
-            ),
-            label: 'Buyurtmalar',
+            label: AppLocalizations.of(context)!.orders,
           ),
           BottomNavigationBarItem(
-            icon: _buildNotificationIcon(
-              color: AppTheme.onSurfaceMuted,
-              badgeCount: unreadCount,
+            icon: const Icon(
+              Icons.notifications_none,
+              size: 26,
             ),
-            activeIcon: _buildNotificationIcon(
-              color: AppTheme.primary,
-              badgeCount: unreadCount,
+            label: AppLocalizations.of(context)!.notifications,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(
+              Icons.person_outline,
+              size: 26,
             ),
-            label: 'Bildirishnomalar',
+            label: AppLocalizations.of(context)!.products,
           ),
         ],
       ),

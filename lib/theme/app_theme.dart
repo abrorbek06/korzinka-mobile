@@ -37,7 +37,7 @@ class AppColors {
 }
 
 class AppTheme {
-  static const Color _background = Color(0xFFF7F8FC);
+  static const Color _background = Color(0xFFFFFFFF);
   static const Color _surface = Color(0xFFFFFFFF);
   static const Color _surfaceVariant = Color(0xFFF2F4FB);
   static const Color _primary = Color(0xFF6D5BFF);

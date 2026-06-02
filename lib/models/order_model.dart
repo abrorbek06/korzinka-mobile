@@ -46,19 +46,19 @@ enum OrderStatus {
   String get displayName {
     switch (this) {
       case DRAFT:
-        return 'Draft';
+        return 'Yangi';
       case CONFIRMED:
-        return 'Confirmed';
+        return 'Tasdiqlangan';
       case IN_COLLECTION:
-        return 'In Collection';
+        return "Yig'ilmoqda";
       case PARTIAL:
-        return 'Partial';
+        return 'Qisman';
       case READY:
-        return 'Ready';
+        return 'Tayyor';
       case COMPLETED:
-        return 'Completed';
+        return 'Yakunlangan';
       case CANCELLED:
-        return 'Cancelled';
+        return 'Bekor qilingan';
     }
   }
 

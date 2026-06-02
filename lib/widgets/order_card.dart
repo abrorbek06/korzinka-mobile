@@ -23,7 +23,7 @@ class OrderCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppTheme.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.border),
+          // border: Border.all(color: AppTheme.border),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -31,12 +31,13 @@ class OrderCard extends StatelessWidget {
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
                   child: Text(
                     order.code ?? 'DRAFT',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: order.code != null
                           ? AppTheme.onSurface
@@ -46,9 +47,59 @@ class OrderCard extends StatelessWidget {
                   ),
                 ),
                 // const SizedBox(width: 8),
+                if (onStatusSelected != null)
+                  PopupMenuButton<OrderStatus>(
+                    onSelected: onStatusSelected,
+                    itemBuilder: (_) => OrderStatus.values
+                        .where((status) => status != order.status)
+                        .map(
+                          (status) => PopupMenuItem<OrderStatus>(
+                        value: status,
+                        child: Row(
+                          children: [
+                            Icon(status.icon, size: 16, color: status.color),
+                            const SizedBox(width: 8),
+                            Text(status.displayName),
+                          ],
+                        ),
+                      ),
+                    )
+                        .toList(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: order.status.lightColor,
+                          // border: Border.all(color: order.status.color, width: 1.5),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              order.status.displayName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: order.status.color,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.keyboard_arrow_down,
+                              size: 16,
+                              color: order.status.color,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 12),
             // if (order.customerName != null)
             //   Text(
             //     'Mijoz: ${order.customerName!}',
@@ -57,7 +108,7 @@ class OrderCard extends StatelessWidget {
             //       fontWeight: FontWeight.w600,
             //     ),
             //   ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Row(
               children: [
                 // Icon(
@@ -95,95 +146,8 @@ class OrderCard extends StatelessWidget {
                 // ),
               ],
             ),
-            const SizedBox(height: 10),
-            if (onStatusSelected != null)
-              PopupMenuButton<OrderStatus>(
-                onSelected: onStatusSelected,
-                itemBuilder: (_) => OrderStatus.values
-                    .where((status) => status != order.status)
-                    .map(
-                      (status) => PopupMenuItem<OrderStatus>(
-                        value: status,
-                        child: Row(
-                          children: [
-                            Icon(status.icon, size: 16, color: status.color),
-                            const SizedBox(width: 8),
-                            Text(status.displayName),
-                          ],
-                        ),
-                      ),
-                    )
-                    .toList(),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Status:",
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.onSurfaceMuted,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: order.status.lightColor,
-                          // border: Border.all(color: order.status.color, width: 1.5),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              order.status.displayName,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: order.status.color,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.keyboard_arrow_down,
-                              size: 16,
-                              color: order.status.color,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            // else
-            //   Column(
-            //     children: [
-            //       Container(
-            //         padding: const EdgeInsets.symmetric(
-            //           horizontal: 10,
-            //           vertical: 4,
-            //         ),
-            //         decoration: BoxDecoration(
-            //           color: order.status.lightColor,
-            //           borderRadius: BorderRadius.circular(10),
-            //         ),
-            //         child: Text(
-            //           order.status.displayName,
-            //           style: TextStyle(
-            //             fontSize: 11,
-            //             fontWeight: FontWeight.w700,
-            //             color: order.status.color,
-            //           ),
-            //         ),
-            //       ),
-            //       const SizedBox(height: 12),
-            //     ],
-            //   ),
+            const SizedBox(height: 14),
+            Divider(),
             Row(
               children: [
                 Icon(

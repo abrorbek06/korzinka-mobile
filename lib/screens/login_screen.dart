@@ -1,6 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:korzinkab_mobile/l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
+import '../providers/locale_provider.dart';
 import '../theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -71,18 +74,50 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Language Switcher
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: PopupMenuButton<String>(
+                            initialValue: context.watch<LocaleProvider>().locale?.languageCode ?? Localizations.localeOf(context).languageCode,
+                            onSelected: (String code) {
+                              context.read<LocaleProvider>().setLocale(Locale(code));
+                            },
+                            icon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.language, size: 20, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Text(
+                                  (context.watch<LocaleProvider>().locale?.languageCode ?? Localizations.localeOf(context).languageCode).toUpperCase(),
+                                  style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                              PopupMenuItem<String>(
+                                value: 'uz',
+                                child: Text(AppLocalizations.of(context)!.uzbek),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'ru',
+                                child: Text(AppLocalizations.of(context)!.russian),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         // Logo / Brand
                         // _buildLogo(),
                         // const SizedBox(height: 48),
 
                         // Title
                         Text(
-                          'Sign in',
+                          AppLocalizations.of(context)!.signIn,
                           style: Theme.of(context).textTheme.headlineLarge,
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Access your order management dashboard',
+                          AppLocalizations.of(context)!.loginSubtitle,
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(color: AppTheme.onSurfaceMuted),
                         ),
@@ -91,14 +126,15 @@ class _LoginScreenState extends State<LoginScreen>
                         // Username
                         TextFormField(
                           controller: _usernameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Username',
-                            prefixIcon: Icon(Icons.person_outline),
+                          decoration: InputDecoration(
+                            labelText: AppLocalizations.of(context)!.username,
+                            prefixIcon: const Icon(Icons.person_outline),
                           ),
                           autocorrect: false,
                           textInputAction: TextInputAction.next,
-                          validator: (v) =>
-                              (v == null || v.isEmpty) ? 'Required' : null,
+                          validator: (v) => (v == null || v.isEmpty)
+                              ? AppLocalizations.of(context)!.required
+                              : null,
                         ),
                         const SizedBox(height: 16),
 
@@ -106,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen>
                         TextFormField(
                           controller: _passwordController,
                           decoration: InputDecoration(
-                            labelText: 'Password',
+                            labelText: AppLocalizations.of(context)!.password,
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(
@@ -122,8 +158,9 @@ class _LoginScreenState extends State<LoginScreen>
                           obscureText: _obscurePassword,
                           textInputAction: TextInputAction.done,
                           onFieldSubmitted: (_) => _handleLogin(),
-                          validator: (v) =>
-                              (v == null || v.isEmpty) ? 'Required' : null,
+                          validator: (v) => (v == null || v.isEmpty)
+                              ? AppLocalizations.of(context)!.required
+                              : null,
                         ),
                         const SizedBox(height: 12),
 
@@ -179,7 +216,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       ),
                                     ),
                                   )
-                                : const Text('Sign In'),
+                                : Text(AppLocalizations.of(context)!.signIn),
                           ),
                         ),
                       ],

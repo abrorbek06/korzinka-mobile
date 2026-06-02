@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:korzinkab_mobile/widgets/orders_order_card.dart';
 import 'package:provider/provider.dart';
+import 'package:korzinkab_mobile/l10n/app_localizations.dart';
+import '../utils/l10n_extensions.dart';
 import '../models/order_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/orders_provider.dart';
@@ -149,9 +151,9 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Filtrlar',
-                          style: TextStyle(
+                        Text(
+                          AppLocalizations.of(context)!.filters,
+                          style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -164,17 +166,17 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                               localSelectedPaymentType = null;
                             });
                           },
-                          child: const Text(
-                            'Tozalash',
-                            style: TextStyle(color: AppTheme.primary),
+                          child: Text(
+                            AppLocalizations.of(context)!.clear,
+                            style: const TextStyle(color: AppTheme.primary),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Buyurtma holati',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    Text(
+                      AppLocalizations.of(context)!.orderStatus,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -183,7 +185,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                       children: OrderStatus.values.map((s) {
                         final selected = localSelectedStatuses.contains(s);
                         return ChoiceChip(
-                          label: Text(s.displayName),
+                          label: Text(s.localizedName(context)),
                           selected: selected,
                           backgroundColor: s.color.withOpacity(0.3),
                           selectedColor: s.color,
@@ -203,9 +205,9 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Toʻlov holati',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    Text(
+                      AppLocalizations.of(context)!.paymentStatus,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -213,7 +215,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                       children: PaymentStatus.values.map((s) {
                         final selected = localSelectedPaymentStatus == s;
                         return ChoiceChip(
-                          label: Text(s.displayName),
+                          label: Text(s.localizedName(context)),
                           selected: selected,
                           backgroundColor: s.color.withOpacity(0.3),
                           selectedColor: s.color,
@@ -229,9 +231,9 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Toʻlov turi',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    Text(
+                      AppLocalizations.of(context)!.paymentType,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -239,7 +241,7 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                       children: PaymentType.values.map((t) {
                         final selected = localSelectedPaymentType == t;
                         return ChoiceChip(
-                          label: Text(t.displayName),
+                          label: Text(t.localizedName(context)),
                           selected: selected,
                           backgroundColor: const Color.fromARGB(
                             255,
@@ -280,9 +282,9 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Text(
-                          'Filtrni qo\'llash',
-                          style: TextStyle(fontWeight: FontWeight.w700),
+                        child: Text(
+                          AppLocalizations.of(context)!.applyFilter,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
@@ -304,7 +306,8 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
     return Scaffold(
       backgroundColor: AppTheme.surface,
       appBar: AppBar(
-        title: const Text('Buyurtmalar'),
+        elevation: 0,
+        title: Text(AppLocalizations.of(context)!.orders),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -315,9 +318,9 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                   child: TextField(
                     controller: _searchController,
                     onChanged: _onSearchChanged,
-                    decoration: const InputDecoration(
-                      hintText: 'Kod yoki mijozni qidirish...',
-                      hintStyle: TextStyle(
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!.searchHint,
+                      hintStyle: const TextStyle(
                         color: AppTheme.onSurfaceMuted,
                         fontSize: 14,
                       ),
@@ -370,23 +373,23 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                   : ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(16),
-                      children: const [
+                      children: [
                         SizedBox(height: 120),
                         Center(
                           child: Text(
-                            'Hech qanday buyurtma topilmadi.',
-                            style: TextStyle(
-                              color: AppTheme.onSurfaceMuted,
-                              fontSize: 15,
-                            ),
-                          ),
+                        AppLocalizations.of(context)!.noOrdersFound,
+                        style: const TextStyle(
+                          color: AppTheme.onSurfaceMuted,
+                          fontSize: 15,
                         ),
-                      ],
-                    ))
+                      ),
+                    ),
+                  ],
+                ))
             : ListView.separated(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
                 itemCount: _orders.length + (_hasMore ? 1 : 0),
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {

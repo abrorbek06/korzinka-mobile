@@ -40,6 +40,7 @@ enum UserRole {
 class AuthenticatedUser {
   final String id;
   final String username;
+  final String name;
   final String? email;
   final UserRole role;
   final bool isActive;
@@ -48,6 +49,7 @@ class AuthenticatedUser {
   const AuthenticatedUser({
     required this.id,
     required this.username,
+    required this.name, 
     this.email,
     required this.role,
     required this.isActive,
@@ -67,6 +69,7 @@ class AuthenticatedUser {
     return AuthenticatedUser(
       id: json['id']?.toString() ?? '',
       username: json['username']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
       email: json['email']?.toString(),
       role: UserRole.values.firstWhere(
         (r) => r.name.toLowerCase() == roleString?.toLowerCase(),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:korzinkab_mobile/l10n/app_localizations.dart';
+import '../utils/l10n_extensions.dart';
 import '../models/user_model.dart';
 import '../models/order_model.dart';
 import '../providers/orders_provider.dart';
@@ -189,7 +191,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                   ),
                 ),
                 const Spacer(),
-                _StatusBadge(status: order.status),
+                _StatusBadge(status: order.status, order: order),
                 // IconButton(
                 //   icon: const Icon(Icons.more_vert, color: Colors.black87),
                 //   onPressed: () {},
@@ -232,14 +234,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'Statusni o\'zgartirish',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.1,
-                      ),
-                    ),
+                const Text(
+                  'Statusni o\'zgartirish',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.1,
+                  ),
+                ),
                     SizedBox(width: 8),
                     Icon(Icons.keyboard_arrow_up, size: 20),
                   ],
@@ -259,13 +261,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
               child: Column(
                 children: [
                   _SummaryRow(
-                    'Mijoz',
+                    AppLocalizations.of(context)!.customer,
                     order.customer?.name ?? '—',
                     isBoldValue: true,
                   ),
                   const SizedBox(height: 12),
                   _SummaryRow(
-                    'Sana',
+                    AppLocalizations.of(context)!.date,
                     DateFormat('dd.MM.yyyy HH:mm').format(order.createdAt),
                   ),
                   const SizedBox(height: 12),
@@ -276,7 +278,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                       SizedBox(
                         width: 80,
                         child: Text(
-                          'Arava',
+                          AppLocalizations.of(context)!.trolley,
                           style: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF6B7280),
@@ -297,13 +299,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                                     bottom: 6,
                                     right: 12.0,
                                   ),
-                                  child: Expanded(
-                                    child: Text(
-                                      "${ct.name ?? ct.code},",
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                  child: Text(
+                                    "${ct.name ?? ct.code},",
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -314,11 +314,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                       if (canUpdateTrolley)
                         GestureDetector(
                           onTap: () => _showTrolleyAssignment(context, order),
-                          child: const Padding(
-                            padding: EdgeInsets.only(left: 8.0),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 8.0),
                             child: Text(
-                              "O'zgartirish",
-                              style: TextStyle(
+                              AppLocalizations.of(context)!.change,
+                              style: const TextStyle(
                                 color: Color(0xFF6366F1),
                                 fontWeight: FontWeight.w600,
                                 fontSize: 14,
@@ -348,8 +348,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                 fontSize: 15,
               ),
               tabs: [
-                Tab(text: 'Mahsulotlar (${order.items.length})'),
-                Tab(text: 'Audit (${ordersProvider.auditLogs.length})'),
+                Tab(text: '${AppLocalizations.of(context)!.products} (${order.items.length})'),
+                Tab(text: '${AppLocalizations.of(context)!.audit} (${ordersProvider.auditLogs.length})'),
               ],
             ),
             const Divider(height: 1, color: Color(0xFFE5E7EB)),
@@ -430,14 +430,14 @@ class _TrolleyDialogState extends State<_TrolleyDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Arava biriktirish",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.attachTrolley,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            const Text(
-              "Ushbu buyurtma uchun arava tanlang:",
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+            Text(
+              AppLocalizations.of(context)!.selectTrolley,
+              style: const TextStyle(color: Colors.grey, fontSize: 14),
             ),
             const SizedBox(height: 12),
             if (_loading)
@@ -445,12 +445,12 @@ class _TrolleyDialogState extends State<_TrolleyDialog> {
             else if (_error != null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Text('Xatolik: $_error'),
+                child: Text('Error: $_error'),
               )
             else if (_carts.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.0),
-                child: Text('Mavjud aravalar topilmadi'),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(AppLocalizations.of(context)!.noTrolleysFound),
               )
             else
               ..._carts.map((c) {
@@ -490,9 +490,9 @@ class _TrolleyDialogState extends State<_TrolleyDialog> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text(
-                  "Bekor qilish",
-                  style: TextStyle(color: Colors.grey),
+                child: Text(
+                  AppLocalizations.of(context)!.cancel,
+                  style: const TextStyle(color: Colors.grey),
                 ),
               ),
             ),
@@ -721,10 +721,10 @@ class _ItemsTabState extends State<_ItemsTab> {
   @override
   Widget build(BuildContext context) {
     if (widget.order.items.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'Mahsulotlar topilmadi',
-          style: TextStyle(color: Color(0xFF9CA3AF)),
+          AppLocalizations.of(context)!.noOrdersFound,
+          style: const TextStyle(color: Color(0xFF9CA3AF)),
         ),
       );
     }
@@ -829,7 +829,7 @@ class _ItemsTabState extends State<_ItemsTab> {
                         const SizedBox(height: 4),
                       ],
                       Text(
-                        'Kerak: ${item.quantity.toInt()} ${item.productName.toLowerCase().contains("banana") || item.productName.toLowerCase().contains("вес") ? "kg" : "dona"}',
+                        '${AppLocalizations.of(context)!.needed}: ${item.quantity.toInt()} ${item.productName.toLowerCase().contains("banana") || item.productName.toLowerCase().contains("вес") ? "kg" : AppLocalizations.of(context)!.units}',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -1041,10 +1041,10 @@ class _AuditTab extends StatelessWidget {
     }
 
     if (provider.auditLogs.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'Harakatlar tarixi yo\'q',
-          style: TextStyle(color: Color(0xFF9CA3AF)),
+          AppLocalizations.of(context)!.noHistory,
+          style: const TextStyle(color: Color(0xFF9CA3AF)),
         ),
       );
     }
@@ -1067,55 +1067,22 @@ class _AuditTab extends StatelessWidget {
 // ─── Status Badge Widget ─────────────────────────────────────────────────────────
 
 class _StatusBadge extends StatelessWidget {
+  final OrderListItem order;
   final OrderStatus status;
 
-  const _StatusBadge({required this.status});
+  const _StatusBadge({required this.status, required this.order});
 
   @override
   Widget build(BuildContext context) {
-    Color bg;
-    Color fg;
-
-    switch (status) {
-      case OrderStatus.IN_COLLECTION:
-        bg = const Color(0xFFEEEAFE);
-        fg = const Color(0xFF6366F1);
-        break;
-      case OrderStatus.CONFIRMED:
-        bg = const Color(0xFFE0F2FE);
-        fg = const Color(0xFF0284C7);
-        break;
-      case OrderStatus.PARTIAL:
-        bg = const Color(0xFFFEF3C7);
-        fg = const Color(0xFFD97706);
-        break;
-      case OrderStatus.READY:
-        bg = const Color(0xFFD1FAE5);
-        fg = const Color(0xFF059669);
-        break;
-      case OrderStatus.COMPLETED:
-        bg = const Color(0xFFECFDF5);
-        fg = const Color(0xFF047857);
-        break;
-      case OrderStatus.CANCELLED:
-        bg = const Color(0xFFFEE2E2);
-        fg = const Color(0xFFDC2626);
-        break;
-      case OrderStatus.DRAFT:
-        bg = const Color(0xFFF3F4F6);
-        fg = const Color(0xFF4B5563);
-        break;
-    }
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: bg,
+        color: order.status.lightColor,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        status.displayNameUz,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg),
+        status.localizedName(context),
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: order.status.color),
       ),
     );
   }

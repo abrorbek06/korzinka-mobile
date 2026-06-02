@@ -43,7 +43,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       appBar: AppBar(
         title: const Text('Bildirishnomalar'),
         backgroundColor: AppTheme.surface,
-        elevation: 1,
+        elevation: 0,
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -53,30 +53,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 padding: const EdgeInsets.all(12),
                 itemBuilder: (ctx, i) {
                   final n = _items[i];
-                  return ListTile(
-                    tileColor: n.isRead ? AppTheme.surface : AppTheme.primary.withOpacity(0.06),
-                    leading: n.isRead
-                        ? null
-                        : Container(
-                            width: 10,
-                            height: 10,
-                            decoration: const BoxDecoration(
-                              color: AppTheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                    title: Text(
-                      n.title,
-                      style: TextStyle(
-                        fontWeight: n.isRead ? FontWeight.normal : FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(n.body, maxLines: 2, overflow: TextOverflow.ellipsis),
-                    trailing: Text(_formatTime(n.createdAt)),
+                  return GestureDetector(
                     onTap: () async {
                       final marked = await Navigator.of(context).push<bool>(
                         MaterialPageRoute(
-                          builder: (_) => NotificationDetailScreen(notification: n),
+                          builder: (_) =>
+                              NotificationDetailScreen(notification: n),
                         ),
                       );
                       if (marked == true) {
@@ -100,6 +82,48 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         });
                       }
                     },
+                    child: Container(
+                      width: double.infinity,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: n.isRead ? AppTheme.border : AppTheme.primary,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.all(14),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              Text(
+                                n.title,
+                                style: TextStyle(
+                                  color: AppTheme.onSurface,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                n.body,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: AppTheme.onSurfaceMuted,
+                                  fontSize: 13,
+                                  fontWeight: n.isRead
+                                      ? FontWeight.normal
+                                      : FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(_formatTime(n.createdAt)),
+                        ],
+                      ),
+                    ),
                   );
                 },
                 separatorBuilder: (_, __) => const SizedBox(height: 8),
