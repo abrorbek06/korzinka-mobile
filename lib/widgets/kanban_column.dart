@@ -11,6 +11,7 @@ class KanbanColumn extends StatelessWidget {
   final void Function(OrderListItem, OrderStatus)? onOrderDrop;
   final double? width;
   final bool hideHeader;
+  final bool addRightMargin;
 
   const KanbanColumn({
     super.key,
@@ -21,13 +22,16 @@ class KanbanColumn extends StatelessWidget {
     this.onOrderDrop,
     this.width,
     this.hideHeader = false,
+    this.addRightMargin = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final body = Container(
       width: width ?? 240,
-      margin: const EdgeInsets.only(right: 12),
+      margin: addRightMargin
+          ? const EdgeInsets.only(right: 12)
+          : EdgeInsets.zero,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -124,7 +128,9 @@ class KanbanColumn extends StatelessWidget {
         final isHovered = candidateData.isNotEmpty;
         return Container(
           width: width ?? 240,
-          margin: const EdgeInsets.only(right: 12),
+          margin: addRightMargin
+              ? const EdgeInsets.only(right: 12)
+              : EdgeInsets.zero,
           decoration: BoxDecoration(
             color: isHovered
                 ? AppTheme.primary.withOpacity(0.05)

@@ -528,12 +528,16 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isBoldValue ? FontWeight.w700 : FontWeight.w600,
-            color: Colors.black87,
+        Expanded(
+          child: Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isBoldValue ? FontWeight.w700 : FontWeight.w600,
+              color: Colors.black87,
+            ),
           ),
         ),
         // if (trailing != null) ...[const Spacer(), trailing!],

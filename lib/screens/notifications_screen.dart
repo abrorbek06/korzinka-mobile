@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:korzinkab_mobile/providers/notifications_provider.dart';
+import 'package:korzinkab_mobile/services/notifications_api.dart';
+import 'package:korzinkab_mobile/theme/app_theme.dart';
+import 'package:korzinkab_mobile/utils/snackbar_utils.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../screens/notification_detail_screen.dart';
-import '../services/notifications_api.dart';
-import '../theme/app_theme.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -36,6 +37,35 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _markReadNotification(NotificationItem notification) async {
+    final auth = context.read<AuthProvider>();
+    try {
+      await NotificationsApi.markRead(auth.token!, notification.id);
+      setState(() {
+        _items = _items.map((e) {
+          if (e.id == notification.id) {
+            return NotificationItem(
+              id: e.id,
+              notificationId: e.notificationId,
+              type: e.type,
+              entityType: e.entityType,
+              entityId: e.entityId,
+              title: e.title,
+              body: e.body,
+              createdAt: e.createdAt,
+              isRead: true,
+            );
+          }
+          return e;
+        }).toList();
+      });
+      await context.read<NotificationsProvider>().refreshCount();
+      context.showTopSnackBar(const Text('Bildirishnoma o‘qildi'));
+    } catch (_) {
+      context.showTopSnackBar(const Text('Belgilashda xatolik yuz berdi'));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -54,34 +84,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 itemBuilder: (ctx, i) {
                   final n = _items[i];
                   return GestureDetector(
-                    onTap: () async {
-                      final marked = await Navigator.of(context).push<bool>(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              NotificationDetailScreen(notification: n),
-                        ),
-                      );
-                      if (marked == true) {
-                        setState(() {
-                          _items = _items.map((e) {
-                            if (e.id == n.id) {
-                              return NotificationItem(
-                                id: e.id,
-                                notificationId: e.notificationId,
-                                type: e.type,
-                                entityType: e.entityType,
-                                entityId: e.entityId,
-                                title: e.title,
-                                body: e.body,
-                                createdAt: e.createdAt,
-                                isRead: true,
-                              );
-                            }
-                            return e;
-                          }).toList();
-                        });
-                      }
-                    },
+                    onTap: n.isRead ? null : () => _markReadNotification(n),
                     child: Container(
                       width: double.infinity,
                       height: 80,

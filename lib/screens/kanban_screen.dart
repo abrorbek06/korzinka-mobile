@@ -35,7 +35,6 @@ class _KanbanScreenState extends State<KanbanScreen> {
     );
   }
 
-
   OrderStatus _currentSelectedStatus(SettingsProvider settings) {
     final visible = settings.visibleStatuses;
     if (visible.isEmpty) {
@@ -142,9 +141,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
 
     if (!hasPermission && !pickerOverride && !pickerRoleAllowed) {
       context.showTopSnackBar(
-        Text(
-          'No permission to move to ${targetStatus.localizedName(context)}',
-        ),
+        Text('No permission to move to ${targetStatus.localizedName(context)}'),
         backgroundColor: Theme.of(context).colorScheme.error,
       );
       return;
@@ -198,7 +195,11 @@ class _KanbanScreenState extends State<KanbanScreen> {
     };
     final statusCounts = {
       for (final status in settings.visibleStatuses)
-        status: _getVisibleStatusCount(status, orders.columns[status] ?? [], user),
+        status: _getVisibleStatusCount(
+          status,
+          orders.columns[status] ?? [],
+          user,
+        ),
     };
     final visibleOrderCount = filteredColumns.values.fold<int>(
       0,
@@ -237,53 +238,54 @@ class _KanbanScreenState extends State<KanbanScreen> {
         ],
       ),
 
-        // bottom: PreferredSize(
-        //   preferredSize: const Size.fromHeight(52),
-        //   child: Container(
-        //     color: AppColors.surface,
-        //     padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-        //     child: Row(
-        //       children: [
-        //         Expanded(
-        //           child: Row(
-        //             mainAxisSize: MainAxisSize.min,
-        //             children: [
+      // bottom: PreferredSize(
+      //   preferredSize: const Size.fromHeight(52),
+      //   child: Container(
+      //     color: AppColors.surface,
+      //     padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      //     child: Row(
+      //       children: [
+      //         Expanded(
+      //           child: Row(
+      //             mainAxisSize: MainAxisSize.min,
+      //             children: [
 
-        //               const Spacer(),
-        //               // Filter icon
-        //               GestureDetector(
-        //                 onTap: () =>
-        //                     setState(() => _showFilters = !_showFilters),
-        //                 child: Container(
-        //                   width: 36,
-        //                   height: 36,
-        //                   decoration: BoxDecoration(
-        //                     color: _showFilters
-        //                         ? AppColors.primary.withOpacity(0.4)
-        //                         : AppColors.background,
-        //                     borderRadius: BorderRadius.circular(10),
-        //                     border: Border.all(color: AppColors.border),
-        //                   ),
-        //                   child: Icon(
-        //                     Icons.tune_rounded,
-        //                     size: 18,
-        //                     color: _showFilters
-        //                         ? AppColors.primary
-        //                         : AppColors.textSecondary,
-        //                   ),
-        //                 ),
-        //               ),
-        //             ],
-        //           ),
-        //         ),
-        //       ],
-        //     ),
-        //   ),
-        // ),
+      //               const Spacer(),
+      //               // Filter icon
+      //               GestureDetector(
+      //                 onTap: () =>
+      //                     setState(() => _showFilters = !_showFilters),
+      //                 child: Container(
+      //                   width: 36,
+      //                   height: 36,
+      //                   decoration: BoxDecoration(
+      //                     color: _showFilters
+      //                         ? AppColors.primary.withOpacity(0.4)
+      //                         : AppColors.background,
+      //                     borderRadius: BorderRadius.circular(10),
+      //                     border: Border.all(color: AppColors.border),
+      //                   ),
+      //                   child: Icon(
+      //                     Icons.tune_rounded,
+      //                     size: 18,
+      //                     color: _showFilters
+      //                         ? AppColors.primary
+      //                         : AppColors.textSecondary,
+      //                   ),
+      //                 ),
+      //               ),
+      //             ],
+      //           ),
+      //         ),
+      //       ],
+      //     ),
+      //   ),
+      // ),
       // ),
       body: Column(
         children: [
-          if (settings.statusChangeViaDropdown && settings.visibleStatuses.isNotEmpty)
+          if (settings.statusChangeViaDropdown &&
+              settings.visibleStatuses.isNotEmpty)
             _StatusTabRow(
               statuses: settings.visibleStatuses,
               selectedStatus: _currentSelectedStatus(settings),
@@ -441,7 +443,8 @@ class _KanbanBoardState extends State<_KanbanBoard> {
         onStatusSelected: widget.onStatusSelected,
         onOrderDrop: widget.onOrderDrop,
         width: expandColumn ? fullColumnWidth : 240,
-        hideHeader: expandColumn,
+        hideHeader: expandColumn && widget.onStatusSelected != null,
+        addRightMargin: !expandColumn,
       );
     }).toList();
 
@@ -549,6 +552,7 @@ class _StatusTabRow extends StatelessWidget {
     );
   }
 }
+
 class _TabStatus extends StatelessWidget {
   final String label;
   final int? count;

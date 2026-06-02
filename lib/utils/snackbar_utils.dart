@@ -60,10 +60,7 @@ extension SnackbarUtils on BuildContext {
     required Color backgroundColor,
   }) {
     final overlay = Overlay.of(this, rootOverlay: true);
-    if (overlay == null) {
-      return;
-    }
-
+  
     _currentTopOverlayEntry?.remove();
     _currentTopOverlayTimer?.cancel();
 
