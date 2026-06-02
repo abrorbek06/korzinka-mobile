@@ -12,7 +12,7 @@ class AppLocalizationsUz extends AppLocalizations {
   String get helloWorld => 'Salom Dunyo!';
 
   @override
-  String get settings => 'Profile';
+  String get profile => 'Profile';
 
   @override
   String get language => 'Til';

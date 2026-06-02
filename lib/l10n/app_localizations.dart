@@ -104,11 +104,11 @@ abstract class AppLocalizations {
   /// **'Salom Dunyo!'**
   String get helloWorld;
 
-  /// No description provided for @settings.
+  /// No description provided for @profile.
   ///
   /// In uz, this message translates to:
   /// **'Profile'**
-  String get settings;
+  String get profile;
 
   /// No description provided for @language.
   ///

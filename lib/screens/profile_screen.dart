@@ -28,7 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         title: Text(
-          l10n.settings,
+          l10n.profile,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,

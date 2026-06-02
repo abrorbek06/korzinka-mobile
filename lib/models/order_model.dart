@@ -418,6 +418,7 @@ class OrderListItem {
   final String? pickerName;
   final DateTime createdAt;
   final DateTime? endDate;
+  final DateTime? completedAt;
   final int backorderedItemsCount;
   final int totalItems;
   final String? trolleyId;
@@ -439,6 +440,7 @@ class OrderListItem {
     this.pickerName,
     required this.createdAt,
     this.endDate,
+    this.completedAt,
     required this.backorderedItemsCount,
     required this.totalItems,
     this.trolleyId,
@@ -485,6 +487,11 @@ class OrderListItem {
               json['endDate']?.toString() ?? DateTime.now().toIso8601String(),
             )
           : null,
+      completedAt: json['completedAt'] != null
+          ? DateTime.parse(
+              json['completedAt']?.toString() ?? DateTime.now().toIso8601String(),
+            )
+          : null,
       backorderedItemsCount: json['backorderedItemsCount'] as int? ?? 0,
       totalItems: inferredTotalItems,
       trolleyId: parseString(json['trolleyId']) ?? _nestedTrolley(json),
@@ -498,7 +505,6 @@ class OrderDetail extends OrderListItem {
   final List<OrderItem> items;
   final Customer? customer;
   final Picker? picker;
-  final DateTime? completedAt;
   final List<Cart> carts;
 
   const OrderDetail({
@@ -521,10 +527,10 @@ class OrderDetail extends OrderListItem {
     required super.totalItems,
     super.trolleyId,
     super.notes,
+    super.completedAt,
     required this.items,
     this.customer,
     this.picker,
-    this.completedAt,
     this.carts = const [],
   });
 

@@ -74,6 +74,24 @@ class _KanbanScreenState extends State<KanbanScreen> {
     return items.where((item) => item.salesManagerId == user.id).toList();
   }
 
+  int _getVisibleStatusCount(
+    OrderStatus status,
+    List<OrderListItem> items,
+    AuthenticatedUser user,
+  ) {
+    final filteredItems = _applyAssignedFilter(items, user);
+    if (status != OrderStatus.COMPLETED) {
+      return filteredItems.length;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return filteredItems.where((item) {
+      final dateToCheck = item.completedAt ?? item.endDate ?? item.createdAt;
+      return dateToCheck.isAfter(today) || dateToCheck.isAtSameMomentAs(today);
+    }).length;
+  }
+
   Future<void> _onOrderDrop(
     OrderListItem orderListItem,
     OrderStatus targetStatus,
@@ -180,7 +198,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
     };
     final statusCounts = {
       for (final status in settings.visibleStatuses)
-        status: _applyAssignedFilter(orders.columns[status] ?? [], user).length,
+        status: _getVisibleStatusCount(status, orders.columns[status] ?? [], user),
     };
     final visibleOrderCount = filteredColumns.values.fold<int>(
       0,
@@ -410,7 +428,7 @@ class _KanbanBoardState extends State<_KanbanBoard> {
         final now = DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
         columnOrders = columnOrders.where((o) {
-          final dateToCheck = o.endDate ?? o.createdAt;
+          final dateToCheck = o.completedAt ?? o.endDate ?? o.createdAt;
           return dateToCheck.isAfter(today) ||
               dateToCheck.isAtSameMomentAs(today);
         }).toList();

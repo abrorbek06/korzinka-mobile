@@ -12,7 +12,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get helloWorld => 'Привет мир!';
 
   @override
-  String get settings => 'Настройки';
+  String get profile => 'Профиль';
 
   @override
   String get language => 'Язык';

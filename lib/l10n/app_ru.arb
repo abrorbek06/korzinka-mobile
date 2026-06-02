@@ -1,7 +1,7 @@
 {
   "@@locale": "ru",
   "helloWorld": "Привет мир!",
-  "settings": "Настройки",
+  "profile": "Профиль",
   "language": "Язык",
   "uzbek": "Узбекский",
   "russian": "Русский",
