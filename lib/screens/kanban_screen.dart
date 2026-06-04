@@ -216,18 +216,18 @@ class _KanbanScreenState extends State<KanbanScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(CupertinoIcons.search),
-            onPressed: () {
-              context.showTopSnackBar(
-                Text(AppLocalizations.of(context)!.searchNotAvailable),
-              );
-            },
-          ),
+          // IconButton(
+          //   icon: const Icon(CupertinoIcons.search),
+          //   onPressed: () {
+          //     context.showTopSnackBar(
+          //       Text(AppLocalizations.of(context)!.searchNotAvailable),
+          //     );
+          //   },
+          // ),
           // Assigned to me toggle
           IconButton(
             icon: Icon(
-              _assignedOnly ? Icons.people : Icons.people_alt_outlined,
+              _assignedOnly ? Icons.all_inbox : Icons.all_inbox_outlined,
               color: _assignedOnly ? AppTheme.primary : null,
             ),
             tooltip: AppLocalizations.of(context)!.assignedToMe,

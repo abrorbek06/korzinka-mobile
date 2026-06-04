@@ -22,9 +22,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize notification service (Firebase Messaging + local notifications)
-  try {
-    await NotificationService.initialize();
-  } catch (_) {}
+  // Do not block app startup on iOS/device initialization failures.
+  NotificationService.initialize().catchError((_) {});
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -253,43 +252,31 @@ class _SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.primary,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 color: AppTheme.primary,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: SvgPicture.asset(
-                'assets/icons/splash.svg',
-                width: 34,
-                height: 34,
+                'assets/images/logo.svg'
               ),
             ),
-            const SizedBox(height: 20),
-            Text(
-              'KANBAN',
-              style: TextStyle(
-                color: AppTheme.primary,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 5,
-              ),
-            ),
-            const SizedBox(height: 32),
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: AppTheme.primary,
-              ),
-            ),
+            // const SizedBox(height: 32),
+            // const SizedBox(
+            //   width: 24,
+            //   height: 24,
+            //   child: CircularProgressIndicator(
+            //     strokeWidth: 2.5,
+            //     color: AppTheme.primary,
+            //   ),
+            // ),
           ],
         ),
       ),

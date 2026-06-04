@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:korzinkab_mobile/l10n/app_localizations.dart';
 import '../providers/auth_provider.dart';
@@ -232,43 +233,23 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildLogo() {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppTheme.primary,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Icon(
-            Icons.view_kanban_outlined,
-            color: Color(0xFF0F1923),
-            size: 24,
-          ),
+        SvgPicture.asset(
+          'assets/images/kanban.svg',
+          color: Color(0xFF0F1923),
+          width: 24,
+          height: 24,
         ),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'KANBAN',
-              style: TextStyle(
-                color: AppTheme.primary,
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 3,
-              ),
-            ),
-            Text(
-              'Order Management',
-              style: TextStyle(
-                color: AppTheme.onSurfaceMuted,
-                fontSize: 11,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ],
+        Text(
+          'KANBAN',
+          style: TextStyle(
+            color: AppTheme.primary,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 3,
+          ),
         ),
       ],
     );
