@@ -96,5 +96,6 @@
   "orderMustBePaid": "Заказ должен быть ОПЛАЧЕН",
   "allBackorderedMustArrive": "Все товары в дозаказе должны поступить",
   "markAsPaid": "Отметить как оплачено",
-  "unmarkPaid": "Снять отметку об оплате"
+  "unmarkPaid": "Снять отметку об оплате",
+  "statusOutForDelivery": "В пути"
 }

@@ -99,5 +99,6 @@
   "orderMustBePaid": "Buyurtma TO'LANGAN bo'lishi kerak",
   "allBackorderedMustArrive": "Barcha backordered mahsulotlar yetishi kerak",
   "markAsPaid": "To'langan deb belgilash",
-  "unmarkPaid": "To'lovni bekor qilish"
+  "unmarkPaid": "To'lovni bekor qilish",
+  "statusOutForDelivery": "Yo'lda"
 }

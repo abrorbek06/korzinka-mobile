@@ -267,4 +267,7 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get unmarkPaid => 'To\'lovni bekor qilish';
+
+  @override
+  String get statusOutForDelivery => 'Yo\'lda';
 }

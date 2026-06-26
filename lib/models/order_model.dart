@@ -29,6 +29,7 @@ enum OrderStatus {
   IN_COLLECTION,
   PARTIAL,
   READY,
+  OUT_FOR_DELIVERY,
   COMPLETED,
   CANCELLED;
 
@@ -55,6 +56,8 @@ enum OrderStatus {
         return 'Qisman';
       case READY:
         return 'Tayyor';
+        case OUT_FOR_DELIVERY:
+        return 'Yetkazib berish';
       case COMPLETED:
         return 'Yakunlangan';
       case CANCELLED:
@@ -74,6 +77,8 @@ enum OrderStatus {
         return "Qisman";
       case READY:
         return "Tayyor";
+        case OUT_FOR_DELIVERY:
+          return "Yetkazib berish";
       case COMPLETED:
         return "Yakunlangan";
       case CANCELLED:
@@ -93,6 +98,8 @@ enum OrderStatus {
         return const Color(0xFFFBC02D);
       case READY:
         return const Color(0xFF43A047);
+        case OUT_FOR_DELIVERY:
+        return const Color(0xFF006989);
       case COMPLETED:
         return const Color(0xFF00897B);
       case CANCELLED:
@@ -112,6 +119,8 @@ enum OrderStatus {
         return const Color(0xFFFFFDE7);
       case READY:
         return const Color(0xFFE8F5E9);
+        case OUT_FOR_DELIVERY:
+        return const Color(0xFFE0F2F1);
       case COMPLETED:
         return const Color(0xFFE0F2F1);
       case CANCELLED:
@@ -124,18 +133,31 @@ enum OrderStatus {
       case DRAFT:
         return Icons.edit_outlined;
       case CONFIRMED:
-        return Icons.check_circle_outline;
+        return Icons.done_outline;
       case IN_COLLECTION:
-        return Icons.local_shipping_outlined;
+        return Icons.timelapse;
       case PARTIAL:
         return Icons.hourglass_bottom_outlined;
       case READY:
         return Icons.inventory_2_outlined;
+        case OUT_FOR_DELIVERY:
+        return Icons.local_shipping_outlined;
       case COMPLETED:
-        return Icons.task_alt;
+        return Icons.check_circle;
       case CANCELLED:
         return Icons.cancel_outlined;
     }
+  }
+}
+
+enum DeliveryType {
+  DELIVERY,
+  TAKE_AWAY;
+
+  static DeliveryType fromRaw(String? raw) {
+    final normalized = raw?.trim().toUpperCase();
+    if (normalized == 'DELIVERY') return DeliveryType.DELIVERY;
+    return DeliveryType.TAKE_AWAY;
   }
 }
 
@@ -423,6 +445,9 @@ class OrderListItem {
   final int totalItems;
   final String? trolleyId;
   final String? notes;
+  final DeliveryType deliveryType;
+  final bool isPostPayment;
+
 
   const OrderListItem({
     required this.id,
@@ -445,7 +470,10 @@ class OrderListItem {
     required this.totalItems,
     this.trolleyId,
     this.notes,
+    required this.deliveryType,
+    required this.isPostPayment,
   });
+
 
   factory OrderListItem.fromJson(Map<String, dynamic> json) {
     final customer = json['customer'] as Map<String, dynamic>?;
@@ -460,6 +488,12 @@ class OrderListItem {
     final inferredTotalItems = (itemsList is List)
         ? (itemsList.length)
         : (json['totalItems'] as int? ?? 0);
+
+    final DeliveryType deliveryType;
+    final bool isPostPayment; // BANK_POST_PAYMENT bo'lsa true
+
+    // fromJson da:
+    final rawPaymentType = json['paymentType']?.toString();
 
     return OrderListItem(
       id: json['id']?.toString() ?? '',
@@ -496,6 +530,9 @@ class OrderListItem {
       totalItems: inferredTotalItems,
       trolleyId: parseString(json['trolleyId']) ?? _nestedTrolley(json),
       notes: json['notes']?.toString(),
+
+      deliveryType: DeliveryType.fromRaw(json['deliveryType']?.toString()),
+      isPostPayment: rawPaymentType == 'BANK_POST_PAYMENT',
     );
   }
 }
@@ -528,6 +565,8 @@ class OrderDetail extends OrderListItem {
     super.trolleyId,
     super.notes,
     super.completedAt,
+    required super.deliveryType,
+    required super.isPostPayment,
     required this.items,
     this.customer,
     this.picker,
@@ -550,6 +589,8 @@ class OrderDetail extends OrderListItem {
     final backorderedCount = items
         .where((i) => i.status == ItemStatus.BACKORDERED)
         .length;
+
+    final rawPaymentType = json['paymentType']?.toString();
 
     return OrderDetail(
       id: json['id']?.toString() ?? '',
@@ -587,6 +628,8 @@ class OrderDetail extends OrderListItem {
       totalItems: items.length,
       trolleyId: parseString(json['trolleyId']) ?? _nestedTrolley(json),
       notes: json['notes']?.toString(),
+      deliveryType: DeliveryType.fromRaw(json['deliveryType']?.toString()),
+      isPostPayment: rawPaymentType == 'BANK_POST_PAYMENT',
       items: items,
       customer: customer != null ? Customer.fromJson(customer) : null,
       picker: picker != null ? Picker.fromJson(picker) : null,
@@ -695,6 +738,18 @@ const List<TransitionDefinition> kTransitionRules = [
     to: OrderStatus.PARTIAL,
     roles: ['ADMIN', 'STORE_MANAGER', 'SALES_MANAGER'],
     requiresBackorderedItems: true,
+  ),
+  TransitionDefinition(
+    from: OrderStatus.READY,
+    to: OrderStatus.OUT_FOR_DELIVERY,
+    roles: ['ADMIN', 'STORE_MANAGER'],
+    requiresPaid: true,
+  ),
+  TransitionDefinition(
+    from: OrderStatus.OUT_FOR_DELIVERY,
+    to: OrderStatus.COMPLETED,
+    roles: ['ADMIN', 'STORE_MANAGER'],
+    requiresPaid: true,
   ),
 ];
 

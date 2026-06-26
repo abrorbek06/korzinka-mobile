@@ -279,4 +279,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get unmarkPaid => 'Снять отметку об оплате';
+
+  @override
+  String get statusOutForDelivery => 'В пути';
 }

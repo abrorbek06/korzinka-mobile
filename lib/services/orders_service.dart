@@ -16,6 +16,7 @@ class OrdersService {
     'Authorization': 'Bearer $token',
   };
 
+
   String _mapPaymentType(PaymentType t) {
     switch (t) {
       case PaymentType.CASH:
@@ -397,6 +398,11 @@ class OrdersService {
   }
 
   void _checkStatus(http.Response response) {
+    if (response.statusCode == 401) {
+      AppConfig.logout(); // Global logoutni chaqirish
+      throw ApiException('Sessiya muddati tugadi', 401);
+    }
+
     if (response.statusCode >= 400) {
       final body = jsonDecode(response.body) as Map<String, dynamic>?;
       final msgVal = body?['message'];

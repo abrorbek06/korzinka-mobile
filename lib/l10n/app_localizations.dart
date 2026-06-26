@@ -595,6 +595,12 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'To\'lovni bekor qilish'**
   String get unmarkPaid;
+
+  /// No description provided for @statusOutForDelivery.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yo\'lda'**
+  String get statusOutForDelivery;
 }
 
 class _AppLocalizationsDelegate

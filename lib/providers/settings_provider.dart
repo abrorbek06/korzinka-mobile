@@ -24,6 +24,7 @@ class SettingsProvider extends ChangeNotifier {
     OrderStatus.IN_COLLECTION,
     OrderStatus.PARTIAL,
     OrderStatus.READY,
+    OrderStatus.OUT_FOR_DELIVERY,
     OrderStatus.COMPLETED,
     OrderStatus.CANCELLED,
   ];

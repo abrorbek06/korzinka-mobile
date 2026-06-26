@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class AppStrings {
   // Auth
   static const appName = 'Kanban';
@@ -24,6 +26,7 @@ class AppStrings {
   static const statusInCollection = 'Yig\'ilmoqda';
   static const statusPartial = 'Qisman yetishmayapti';
   static const statusReady = 'Tayyor';
+  static const statusOutForDelivery = 'Yetkazib berish';
   static const statusCompleted = 'Yakunlangan';
   static const statusCancelled = 'Bekor qilingan';
 
@@ -76,4 +79,14 @@ class AppConfig {
   static const String userKey = 'picker_user_data';
   static const String trolleyKey = 'trolley_assignments';
   static const int trolleyCount = 50; // AR-01 ... AR-50
+
+
+  static VoidCallback? onUnauthorized;
+
+  static void logout() {
+    if (onUnauthorized != null) {
+      onUnauthorized!();
+    }
+  }
+
 }

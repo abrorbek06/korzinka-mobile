@@ -16,6 +16,8 @@ extension OrderStatusL10n on OrderStatus {
         return l10n.statusPartial;
       case OrderStatus.READY:
         return l10n.statusReady;
+      case OrderStatus.OUT_FOR_DELIVERY:
+        return l10n.statusOutForDelivery;
       case OrderStatus.COMPLETED:
         return l10n.statusCompleted;
       case OrderStatus.CANCELLED:

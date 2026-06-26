@@ -24,6 +24,7 @@ class AppColors {
   static const Color qismanColor = Color(0xFFF59E0B); // Qisman - to'q sariq
   static const Color tayyorColor = Color(0xFF10B981); // Tayyor - yashil
   static const Color yakunColor = Color(0xFF6B7280); // Yakunlangan - kulrang
+  static const Color yetkazibColor = Color(0xFF22C0C5); // Yetkazib berish - yashil
   static const Color bekorColor = Color(0xFFEF4444); // Bekor - qizil
 
   // Item status

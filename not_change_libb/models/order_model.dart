@@ -35,6 +35,7 @@ enum OrderStatus {
   IN_COLLECTION,
   PARTIAL,
   READY,
+  OUT_FOR_DELIVERY,
   COMPLETED,
   CANCELLED;
 
@@ -50,6 +51,8 @@ enum OrderStatus {
         return AppStrings.statusPartial;
       case READY:
         return AppStrings.statusReady;
+        case OUT_FOR_DELIVERY:
+        return AppStrings.statusOutForDelivery;
       case COMPLETED:
         return AppStrings.statusCompleted;
       case CANCELLED:
@@ -69,6 +72,8 @@ enum OrderStatus {
         return AppColors.qismanColor;
       case READY:
         return AppColors.tayyorColor;
+      case OUT_FOR_DELIVERY:
+        return AppColors.yetkazibColor;
       case COMPLETED:
         return AppColors.yakunColor;
       case CANCELLED:
@@ -88,6 +93,8 @@ enum OrderStatus {
         return const Color(0xFFFEF9C3);
       case READY:
         return const Color(0xFFD1FAE5);
+      case OUT_FOR_DELIVERY:
+        return AppColors.yetkazibColor;
       case COMPLETED:
         return const Color(0xFFF1F5F9);
       case CANCELLED:

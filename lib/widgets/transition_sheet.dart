@@ -44,6 +44,7 @@ class TransitionSheet extends StatefulWidget {
   State<TransitionSheet> createState() => _TransitionSheetState();
 }
 
+
 class _TransitionSheetState extends State<TransitionSheet> {
   final _trolleyIdController = TextEditingController();
   final _notesController = TextEditingController();
@@ -63,6 +64,18 @@ class _TransitionSheetState extends State<TransitionSheet> {
       widget.order.status,
       widget.currentUser.role.name,
     );
+
+    final filtered = base.where((t) {
+      if (t.from == OrderStatus.READY) {
+        if (t.to == OrderStatus.OUT_FOR_DELIVERY) {
+          return widget.order.deliveryType == DeliveryType.DELIVERY;
+        }
+        if (t.to == OrderStatus.COMPLETED) {
+          return widget.order.deliveryType == DeliveryType.TAKE_AWAY;
+        }
+      }
+      return true;
+    }).toList();
 
     final result = <TransitionDefinition>[];
     void addUnique(TransitionDefinition item) {
@@ -238,6 +251,19 @@ class _TransitionSheetState extends State<TransitionSheet> {
           );
           return;
         }
+      }
+    }
+
+    if (_selected!.requiresPaid && widget.order.paymentStatus != PaymentStatus.PAID) {
+      // BANK_POST_PAYMENT uchun READY -> OUT_FOR_DELIVERY o'tishida istisno
+      final isPostPaymentExemption =
+          widget.order.isPostPayment &&
+              _selected!.from == OrderStatus.READY &&
+              _selected!.to == OrderStatus.OUT_FOR_DELIVERY;
+
+      if (!isPostPaymentExemption) {
+        _showError(AppLocalizations.of(context)!.orderMustBePaid);
+        return;
       }
     }
     // PARTIAL → READY requires arrivedItemIds payload

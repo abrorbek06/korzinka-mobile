@@ -7,6 +7,12 @@ import '../services/auth_service.dart';
 enum AuthState { initial, loading, authenticated, unauthenticated }
 
 class AuthProvider extends ChangeNotifier {
+  AuthProvider() {
+    // AppConfig dagi signalni AuthProvider.logout() ga bog'laymiz
+    AppConfig.onUnauthorized = () {
+      logout();
+    };
+  }
   final AuthService _authService = AuthService();
 
   AuthState _state = AuthState.initial;
