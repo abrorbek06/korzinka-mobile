@@ -8,6 +8,85 @@ class OrdersProvider extends ChangeNotifier {
   late OrdersService _ordersService;
   final SocketService _socketService = SocketService();
 
+  String _toUserMessage(Object error) {
+    if (error is ApiException) {
+      final message = error.message.trim();
+      final lower = message.toLowerCase();
+
+      if (message.contains('Sessiya muddati tugadi')) {
+        return 'Sessiyangiz tugadi. Iltimos, qayta kirib keting.';
+      }
+      if (lower.contains('timed out') || message.contains('504')) {
+        return 'Serverga ulanish vaqti tugadi. Iltimos, birozdan keyin qayta urinib ko‘ring.';
+      }
+      if (lower.contains('not found') || lower.contains('topilmadi')) {
+        return 'Ma’lumot topilmadi.';
+      }
+      if (lower.contains(
+            'order items cannot be changed while the order is paid',
+          ) ||
+          lower.contains(
+            'quantity cannot be changed while the order is paid',
+          )) {
+        return 'Buyurtma to‘langanligi sababli mahsulot sonini o‘zgartirib bo‘lmaydi. Avval to‘lovni bekor qiling.';
+      }
+      if (lower.contains(
+            'cash/card orders cannot be created with paymentstatus=paid',
+          ) ||
+          lower.contains(
+            'cash/card orders cannot be created with payment status=paid',
+          )) {
+        return 'Naqd yoki kartali buyurtma yaratishda oldindan to‘lov belgilanmaydi. Buyurtma tayyor holatga kelgach, to‘lovni belgilang.';
+      }
+      if (lower.contains('must be marked paid before ready') ||
+          lower.contains('order must be marked paid')) {
+        return 'Buyurtma yakunlanishidan oldin to‘lov tasdiqlanishi kerak.';
+      }
+      if (lower.contains('ready ->') &&
+          lower.contains('blocked for paid cash/card orders')) {
+        return 'Bu buyurtma allaqachon to‘langanligi sababli qaytib kelish ishlovi bekor qilindi. Avval to‘lovni bekor qiling.';
+      }
+      if (lower.contains('transition') && lower.contains('not allowed')) {
+        return 'Bu holat o‘zgartirish mumkin emas. Iltimos, boshqa bosqichga o‘ting.';
+      }
+      if (lower.contains('picker') && lower.contains('required')) {
+        return 'Tanlov uchun picker tanlang.';
+      }
+      if (lower.contains('backordered') || lower.contains('backorder')) {
+        return 'Qoldiq mahsulotlarni oldin to‘g‘ri belgilang.';
+      }
+      if (lower.contains('must have at least one active contract')) {
+        return 'Buyurtma uchun kamida bitta faol shartnoma bo‘lishi kerak.';
+      }
+      if (lower.contains('already exists') ||
+          lower.contains('already active')) {
+        return 'Bu ma’lumot allaqachon mavjud.';
+      }
+      if (lower.contains('forbidden') || lower.contains('ruxsat')) {
+        return 'Ushbu amal uchun sizga ruxsat yo‘q.';
+      }
+      if (message.isNotEmpty) {
+        return message;
+      }
+    }
+
+    final message = error.toString();
+    final lower = message.toLowerCase();
+    if (lower.contains('socketexception') ||
+        lower.contains('handshakeexception') ||
+        lower.contains('clientexception')) {
+      return 'Internet aloqasi mavjud emas. Iltimos, tarmoqni tekshirib qayta urinib ko‘ring.';
+    }
+    if (lower.contains('formatexception')) {
+      return 'Ma’lumot formati noto‘g‘ri.';
+    }
+    if (lower.contains('timeoutexception')) {
+      return 'So‘rov vaqti tugadi. Iltimos, qayta urinib ko‘ring.';
+    }
+
+    return 'Xatolik yuz berdi. Iltimos, qayta urinib ko‘ring.';
+  }
+
   // Kanban data: status → orders
   final Map<OrderStatus, List<OrderListItem>> _columns = {
     for (final s in OrderStatus.values) s: [],
@@ -76,7 +155,7 @@ class OrdersProvider extends ChangeNotifier {
       _error = null;
     } catch (e) {
       print('[OrdersProvider] loadAllColumns error: $e');
-      _error = e.toString();
+      _error = _toUserMessage(e);
     }
 
     _loading = false;
@@ -140,7 +219,7 @@ class OrdersProvider extends ChangeNotifier {
       notifyListeners();
       await _loadAuditLogs(orderId);
     } catch (e) {
-      _error = e.toString();
+      _error = _toUserMessage(e);
       notifyListeners();
     }
   }
@@ -161,7 +240,6 @@ class OrdersProvider extends ChangeNotifier {
     String? pickerId,
     String? trolleyId,
     List<Map<String, dynamic>>? backorderedItems,
-    List<String>? arrivedItemIds,
     String? notes,
   }) async {
     try {
@@ -171,7 +249,6 @@ class OrdersProvider extends ChangeNotifier {
         pickerId: pickerId,
         trolleyId: trolleyId,
         backorderedItems: backorderedItems,
-        arrivedItemIds: arrivedItemIds,
         notes: notes,
       );
 
@@ -187,7 +264,7 @@ class OrdersProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = _toUserMessage(e);
       notifyListeners();
       return false;
     }
@@ -200,7 +277,7 @@ class OrdersProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = _toUserMessage(e);
       notifyListeners();
       return false;
     }
@@ -213,7 +290,7 @@ class OrdersProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = _toUserMessage(e);
       notifyListeners();
       return false;
     }
@@ -237,7 +314,7 @@ class OrdersProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = _toUserMessage(e);
       notifyListeners();
       return false;
     }
@@ -245,19 +322,19 @@ class OrdersProvider extends ChangeNotifier {
 
   Future<bool> attachCart({
     required String orderId,
-    required String cartId,
+    required List<String> cartIds,
   }) async {
     try {
       final updated = await _ordersService.attachCart(
         orderId: orderId,
-        cartId: cartId,
+        cartIds: cartIds,
       );
       _updateInColumns(updated);
       await _loadAuditLogs(orderId);
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = _toUserMessage(e);
       notifyListeners();
       return false;
     }
@@ -277,7 +354,7 @@ class OrdersProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = _toUserMessage(e);
       notifyListeners();
       return false;
     }
@@ -290,7 +367,7 @@ class OrdersProvider extends ChangeNotifier {
       final raw = await _ordersService.getAvailableCarts(branchId: branchId);
       return raw;
     } catch (e) {
-      _error = e.toString();
+      _error = _toUserMessage(e);
       notifyListeners();
       return [];
     }
@@ -312,11 +389,30 @@ class OrdersProvider extends ChangeNotifier {
         backorderedQuantity: backorderedQuantity,
       );
       _updateInColumns(updated);
+      // Don't call _updateInColumns to avoid triggering column refresh
+      // Only update the specific item in selectedOrder to preserve order
+      if (_selectedOrder?.id == updated.id) {
+        final itemIndex = _selectedOrder!.items.indexWhere(
+          (i) => i.id == itemId,
+        );
+        if (itemIndex != -1) {
+          final updatedItem = updated.items.firstWhere((i) => i.id == itemId);
+          // Update the item in-place to preserve order
+          _selectedOrder!.items[itemIndex] = updatedItem;
+          // Use copyWith to update immutable fields while preserving items order
+          _selectedOrder = _selectedOrder!.copyWith(
+            status: updated.status,
+            backorderedItemsCount: updated.backorderedItemsCount,
+            carts: updated.carts,
+            items: _selectedOrder!.items, // Keep original order
+          );
+        }
+      }
       await _loadAuditLogs(orderId);
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = _toUserMessage(e);
       notifyListeners();
       return false;
     }

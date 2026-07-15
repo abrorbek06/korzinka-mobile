@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:korzinkab_mobile/l10n/app_localizations.dart';
 import '../models/order_model.dart';
 import '../theme/app_theme.dart';
 
@@ -51,19 +52,34 @@ class OrderCard extends StatelessWidget {
                   PopupMenuButton<OrderStatus>(
                     onSelected: onStatusSelected,
                     itemBuilder: (_) => OrderStatus.values
-                        .where((status) => status != order.status)
+                        .where((status) {
+                          final hiddenStatuses = {
+                            OrderStatus.DRAFT,
+                            OrderStatus.CONFIRMED,
+                            OrderStatus.OUT_FOR_DELIVERY,
+                            OrderStatus.COMPLETED,
+                            OrderStatus.CANCELLED,
+                          };
+
+                          return status != order.status &&
+                              !hiddenStatuses.contains(status);
+                        })
                         .map(
                           (status) => PopupMenuItem<OrderStatus>(
-                        value: status,
-                        child: Row(
-                          children: [
-                            Icon(status.icon, size: 16, color: status.color),
-                            const SizedBox(width: 8),
-                            Text(status.displayName),
-                          ],
-                        ),
-                      ),
-                    )
+                            value: status,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  status.icon,
+                                  size: 16,
+                                  color: status.color,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(status.displayName),
+                              ],
+                            ),
+                          ),
+                        )
                         .toList(),
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 4),
@@ -108,26 +124,59 @@ class OrderCard extends StatelessWidget {
             //       fontWeight: FontWeight.w600,
             //     ),
             //   ),
-            const SizedBox(height: 12),
+            // if (order.pickerId != null)
+            //   Row(
+            //     children: [
+            //       SizedBox(
+            //         width: 80,
+            //         child: Text(
+            //           AppLocalizations.of(context)!.picker,
+            //           style: const TextStyle(
+            //             fontSize: 12,
+            //             color: Color(0xFF6B7280),
+            //             fontWeight: FontWeight.w500,
+            //           ),
+            //         ),
+            //       ),
+            //       Expanded(
+            //         child: Text(
+            //           order.pickerName ?? '—',
+            //           overflow: TextOverflow.ellipsis,
+            //           maxLines: 1,
+            //           style: TextStyle(
+            //             fontSize: 12,
+            //             fontWeight: FontWeight.w700,
+            //             color: Colors.black87,
+            //           ),
+            //         ),
+            //       ),
+            //     ],
+            //   ),
+            const SizedBox(height: 8),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Icon(
-                //   Icons.shopping_cart_outlined,
-                //   size: 14,
-                //   color: AppTheme.onSurfaceMuted,
-                // ),
-                // const SizedBox(width: 6),
                 Text(
                   order.totalItems > 0
-                      ? '${order.totalItems} ta mahsulot'
+                      ? AppLocalizations.of(context)!.productCount(order.totalItems)
                       : order.backorderedItemsCount > 0
-                      ? '${order.backorderedItemsCount} ta mahsulot kerak'
-                      : '0 ta mahsulot kerak',
+                      ? AppLocalizations.of(context)!.productsNeeded(order.backorderedItemsCount)
+                      : AppLocalizations.of(context)!.productCount(0),
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.onSurfaceMuted,
                   ),
                 ),
+                    Text(
+                      order.pickerName ?? '—',
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
                 // const Spacer(),
                 // Container(
                 //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -166,8 +215,8 @@ class OrderCard extends StatelessWidget {
                 const Spacer(),
                 Text(
                   order.endDate != null
-                      ? DateFormat('HH:mm').format(order.endDate!)
-                      : DateFormat('HH:mm').format(order.createdAt),
+                      ? DateFormat('HH:mm | d MMM, y').format(order.endDate!)
+                      : DateFormat('HH:mm | d MMM, y').format(order.createdAt),
                   style: const TextStyle(
                     fontSize: 12,
                     color: AppTheme.onSurfaceMuted,

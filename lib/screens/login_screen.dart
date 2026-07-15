@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
@@ -79,31 +78,57 @@ class _LoginScreenState extends State<LoginScreen>
                         Align(
                           alignment: Alignment.centerRight,
                           child: PopupMenuButton<String>(
-                            initialValue: context.watch<LocaleProvider>().locale?.languageCode ?? Localizations.localeOf(context).languageCode,
+                            initialValue:
+                                context
+                                    .watch<LocaleProvider>()
+                                    .locale
+                                    ?.languageCode ??
+                                Localizations.localeOf(context).languageCode,
                             onSelected: (String code) {
-                              context.read<LocaleProvider>().setLocale(Locale(code));
+                              context.read<LocaleProvider>().setLocale(
+                                Locale(code),
+                              );
                             },
                             icon: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.language, size: 20, color: Colors.grey),
+                                const Icon(
+                                  Icons.language,
+                                  size: 20,
+                                  color: Colors.grey,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  (context.watch<LocaleProvider>().locale?.languageCode ?? Localizations.localeOf(context).languageCode).toUpperCase(),
-                                  style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                                  (context
+                                              .watch<LocaleProvider>()
+                                              .locale
+                                              ?.languageCode ??
+                                          Localizations.localeOf(
+                                            context,
+                                          ).languageCode)
+                                      .toUpperCase(),
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
-                            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                              PopupMenuItem<String>(
-                                value: 'uz',
-                                child: Text(AppLocalizations.of(context)!.uzbek),
-                              ),
-                              PopupMenuItem<String>(
-                                value: 'ru',
-                                child: Text(AppLocalizations.of(context)!.russian),
-                              ),
-                            ],
+                            itemBuilder: (BuildContext context) =>
+                                <PopupMenuEntry<String>>[
+                                  PopupMenuItem<String>(
+                                    value: 'uz',
+                                    child: Text(
+                                      AppLocalizations.of(context)!.uzbek,
+                                    ),
+                                  ),
+                                  PopupMenuItem<String>(
+                                    value: 'ru',
+                                    child: Text(
+                                      AppLocalizations.of(context)!.russian,
+                                    ),
+                                  ),
+                                ],
                           ),
                         ),
                         const SizedBox(height: 12),

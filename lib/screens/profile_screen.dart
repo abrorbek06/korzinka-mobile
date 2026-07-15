@@ -97,31 +97,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         border: Border.all(color: AppTheme.border.withOpacity(0.5)),
       ),
       child: Column(
-        children: children
-            .asMap()
-            .entries
-            .map((entry) {
-              final isLast = entry.key == children.length - 1;
-              return Column(
-                children: [
-                  entry.value,
-                  if (!isLast)
-                    Divider(
-                      height: 1,
-                      indent: 56,
-                      color: AppTheme.border.withOpacity(0.5),
-                    ),
-                ],
-              );
-            })
-            .toList(),
+        children: children.asMap().entries.map((entry) {
+          final isLast = entry.key == children.length - 1;
+          return Column(
+            children: [
+              entry.value,
+              if (!isLast)
+                Divider(
+                  height: 1,
+                  indent: 56,
+                  color: AppTheme.border.withOpacity(0.5),
+                ),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
 
   Widget _buildLanguageTile(l10n) {
     final localeProvider = context.watch<LocaleProvider>();
-    final currentLocale = localeProvider.locale ?? Localizations.localeOf(context);
+    final currentLocale =
+        localeProvider.locale ?? Localizations.localeOf(context);
 
     return ListTile(
       leading: const Icon(CupertinoIcons.globe, color: Colors.blueAccent),
@@ -185,7 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       trailing: CupertinoSwitch(
         value: settings.statusChangeViaDropdown,
-        activeColor: AppTheme.primary,
+        activeTrackColor: AppTheme.primary,
         onChanged: settings.setStatusChangeViaDropdown,
       ),
       subtitle: Text(
@@ -195,8 +192,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildVisibleStatusesTile(BuildContext context, l10n,
-      SettingsProvider settings) {
+  Widget _buildVisibleStatusesTile(
+    BuildContext context,
+    l10n,
+    SettingsProvider settings,
+  ) {
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(

@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:korzinkab_mobile/l10n/app_localizations.dart';
@@ -226,15 +225,26 @@ class _KanbanScreenState extends State<KanbanScreen> {
           //   },
           // ),
           // Assigned to me toggle
-          IconButton(
-            icon: Icon(
-              _assignedOnly ? Icons.all_inbox : Icons.all_inbox_outlined,
-              color: _assignedOnly ? AppTheme.primary : null,
-            ),
-            tooltip: AppLocalizations.of(context)!.assignedToMe,
+          // IconButton(
+          //   icon: Icon(
+          //     _assignedOnly ? Icons.all_inbox : Icons.all_inbox_outlined,
+          //     color: _assignedOnly ? AppTheme.primary : null,
+          //   ),
+          //   tooltip: AppLocalizations.of(context)!.assignedToMe,
+          //   onPressed: () {
+          //     setState(() => _assignedOnly = !_assignedOnly);
+          //   },
+          // ),
+          TextButton(
             onPressed: () {
               setState(() => _assignedOnly = !_assignedOnly);
             },
+            child: Text(
+              AppLocalizations.of(context)!.assignedToMe,
+              style: TextStyle(
+                color: _assignedOnly ? Colors.black : Colors.amber,
+              ),
+            ),
           ),
         ],
       ),

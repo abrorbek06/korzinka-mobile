@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:korzinkab_mobile/utils/snackbar_utils.dart';
-import 'dart:ui' as ui;
 import '../config/app_config.dart';
 import '../utils/app_keys.dart';
 
@@ -103,7 +102,12 @@ class NotificationService {
       android: androidDetails,
       iOS: iosDetails,
     );
-    await _local.show(id: 0, title: title, body: body, notificationDetails: platform);
+    await _local.show(
+      id: 0,
+      title: title,
+      body: body,
+      notificationDetails: platform,
+    );
   }
 
   void _handleNewToken(String token) {

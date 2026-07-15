@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:korzinkab_mobile/l10n/app_localizations.dart';
 import '../utils/l10n_extensions.dart';
@@ -44,7 +43,6 @@ class TransitionSheet extends StatefulWidget {
   State<TransitionSheet> createState() => _TransitionSheetState();
 }
 
-
 class _TransitionSheetState extends State<TransitionSheet> {
   final _trolleyIdController = TextEditingController();
   final _notesController = TextEditingController();
@@ -56,7 +54,6 @@ class _TransitionSheetState extends State<TransitionSheet> {
   bool _loadingPickers = false;
   final Set<String> _selectedBackorderedItemIds = {};
   final Map<String, TextEditingController> _backorderedQuantityControllers = {};
-  final Set<String> _selectedArrivedItemIds = {};
 
   List<TransitionDefinition> get _available {
     // Base available transitions according to the static role map.
@@ -128,13 +125,6 @@ class _TransitionSheetState extends State<TransitionSheet> {
     if (widget.initialTarget != null) {
       try {
         _selected = _available.firstWhere((t) => t.to == widget.initialTarget);
-        if (_selected?.requiresArrivedItemIds == true) {
-          _selectedArrivedItemIds.addAll(
-            widget.order.items
-                .where((i) => i.status == ItemStatus.BACKORDERED)
-                .map((i) => i.id),
-          );
-        }
       } catch (_) {
         // If the target is not available for this role, leave it null
       }
@@ -230,7 +220,12 @@ class _TransitionSheetState extends State<TransitionSheet> {
       return;
     }
     // Some transitions require a backorder quantity selection.
-    if (_selected!.requiresBackorderedItems) {
+    // Skip if items are already marked as backordered in order detail
+    final hasBackorderedItems = widget.order.items.any(
+      (i) => i.status == ItemStatus.BACKORDERED,
+    );
+
+    if (_selected!.requiresBackorderedItems && !hasBackorderedItems) {
       if (_selectedBackorderedItemIds.isEmpty) {
         _showError('Please select at least one item to mark as backordered.');
         return;
@@ -254,39 +249,48 @@ class _TransitionSheetState extends State<TransitionSheet> {
       }
     }
 
-    if (_selected!.requiresPaid && widget.order.paymentStatus != PaymentStatus.PAID) {
+    if (_selected!.requiresPaid &&
+        widget.order.paymentStatus != PaymentStatus.PAID) {
       // BANK_POST_PAYMENT uchun READY -> OUT_FOR_DELIVERY o'tishida istisno
       final isPostPaymentExemption =
           widget.order.isPostPayment &&
-              _selected!.from == OrderStatus.READY &&
-              _selected!.to == OrderStatus.OUT_FOR_DELIVERY;
+          _selected!.from == OrderStatus.READY &&
+          _selected!.to == OrderStatus.OUT_FOR_DELIVERY;
 
       if (!isPostPaymentExemption) {
         _showError(AppLocalizations.of(context)!.orderMustBePaid);
         return;
       }
     }
-    // PARTIAL → READY requires arrivedItemIds payload
-    if (_selected!.requiresArrivedItemIds) {
-      if (_selectedArrivedItemIds.isEmpty) {
-        _showError(AppLocalizations.of(context)!.allBackorderedMustArrive);
-        return;
-      }
-      final backorderedIds = widget.order.items
-          .where((i) => i.status == ItemStatus.BACKORDERED)
-          .map((i) => i.id)
-          .toSet();
-      if (_selectedArrivedItemIds.length != backorderedIds.length ||
-          !_selectedArrivedItemIds.every(backorderedIds.contains)) {
-        _showError(
-          AppLocalizations.of(context)!.allBackorderedMustArrive,
-        );
-        return;
-      }
-    }
+    // PARTIAL → READY no longer requires manual arrivedItemIds selection
+    // Items are automatically marked as available during the transition
 
     setState(() => _submitting = true);
     final provider = context.read<OrdersProvider>();
+
+    // When transitioning to READY, mark all products as available
+    if (_selected!.to == OrderStatus.READY) {
+      for (final item in widget.order.items) {
+        if (item.status == ItemStatus.BACKORDERED ||
+            (item.backorderedQuantity ?? 0) > 0) {
+          final itemSuccess = await provider.updateOrderItem(
+            orderId: widget.order.id,
+            itemId: item.id,
+            status: 'available', // API expects lowercase
+            backorderedQuantity:
+                null, // Don't provide backorderedQuantity when status is available
+          );
+          if (!itemSuccess) {
+            if (mounted) {
+              _showError(provider.error ?? 'Failed to mark item as available.');
+              provider.clearError();
+              setState(() => _submitting = false);
+            }
+            return;
+          }
+        }
+      }
+    }
 
     // Build backorderedItems payload
     List<Map<String, dynamic>>? backorderedItemsPayload;
@@ -305,7 +309,8 @@ class _TransitionSheetState extends State<TransitionSheet> {
         _selected!.from == OrderStatus.IN_COLLECTION &&
         _selected!.to == OrderStatus.PARTIAL;
 
-    if (isInCollectionToPartial) {
+    // Only send item-level backorder declarations if items are not already marked
+    if (isInCollectionToPartial && !hasBackorderedItems) {
       // Send item-level backorder declarations before the transition.
       for (final itemId in _selectedBackorderedItemIds) {
         final item = widget.order.items.firstWhere((i) => i.id == itemId);
@@ -347,9 +352,6 @@ class _TransitionSheetState extends State<TransitionSheet> {
       backorderedItems: isInCollectionToPartial
           ? null
           : backorderedItemsPayload,
-      arrivedItemIds: _selected!.requiresArrivedItemIds
-          ? _selectedArrivedItemIds.toList()
-          : null,
       notes: _notesController.text.trim().isNotEmpty
           ? _notesController.text.trim()
           : null,
@@ -372,8 +374,8 @@ class _TransitionSheetState extends State<TransitionSheet> {
   }
 
   double _calculateInitialChildSize() {
-    // Open the modal at maximum allowed height so it appears near-fullscreen.
-    return 0.92;
+    // Return a fixed size regardless of selection
+    return 0.5; // 50% of screen height
   }
 
   @override
@@ -419,7 +421,8 @@ class _TransitionSheetState extends State<TransitionSheet> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          widget.order.code ?? AppLocalizations.of(context)!.draftOrder,
+                          widget.order.code ??
+                              AppLocalizations.of(context)!.draftOrder,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -514,21 +517,11 @@ class _TransitionSheetState extends State<TransitionSheet> {
                             _errorMessage = null;
                             _selected = t;
                             _selectedBackorderedItemIds.clear();
-                            _selectedArrivedItemIds.clear();
                             for (final controller
                                 in _backorderedQuantityControllers.values) {
                               controller.dispose();
                             }
                             _backorderedQuantityControllers.clear();
-                            if (t.requiresArrivedItemIds) {
-                              _selectedArrivedItemIds.addAll(
-                                widget.order.items
-                                    .where(
-                                      (i) => i.status == ItemStatus.BACKORDERED,
-                                    )
-                                    .map((i) => i.id),
-                              );
-                            }
                           }),
                         ),
                       ),
@@ -607,8 +600,10 @@ class _TransitionSheetState extends State<TransitionSheet> {
                               )
                             : DropdownButtonFormField<PickerUser>(
                                 initialValue: _selectedPicker,
-                            decoration: InputDecoration(
-                                  labelText: AppLocalizations.of(context)!.selectPicker,
+                                decoration: InputDecoration(
+                                  labelText: AppLocalizations.of(
+                                    context,
+                                  )!.selectPicker,
                                   prefixIcon: const Icon(
                                     Icons.person_search_outlined,
                                   ),
@@ -642,319 +637,136 @@ class _TransitionSheetState extends State<TransitionSheet> {
                           controller: _trolleyIdController,
                           decoration: InputDecoration(
                             labelText: AppLocalizations.of(context)!.trolleyId,
-                            prefixIcon: const Icon(Icons.local_shipping_outlined),
-                            hintText: AppLocalizations.of(context)!.enterTrolleyId,
+                            prefixIcon: const Icon(
+                              Icons.local_shipping_outlined,
+                            ),
+                            hintText: AppLocalizations.of(
+                              context,
+                            )!.enterTrolleyId,
                           ),
                         ),
                         const SizedBox(height: 12),
                       ],
 
-                      if (_selected?.requiresArrivedItemIds == true) ...[
-                        Text(
-                          AppLocalizations.of(context)!.allBackorderedAvailable,
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          constraints: const BoxConstraints(maxHeight: 140),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFF),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
-                          ),
-                          child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shrinkWrap: true,
-                            itemCount: widget.order.items
-                                .where(
-                                  (i) => i.status == ItemStatus.BACKORDERED,
-                                )
-                                .length,
-                            itemBuilder: (context, index) {
-                              final item = widget.order.items
-                                  .where(
-                                    (i) => i.status == ItemStatus.BACKORDERED,
-                                  )
-                                  .toList()[index];
-                              return ListTile(
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 6,
-                                ),
-                                leading: const Icon(
-                                  Icons.check_circle_outline,
-                                  color: Color(0xFF4338CA),
-                                ),
-                                title: Text(item.productName),
-                                subtitle: Text(
-                                  AppLocalizations.of(context)!.quantityCount(
-                                    item.quantity.toInt(),
-                                    AppLocalizations.of(context)!.units,
-                                  ),
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      if (_selected?.requiresBackorderedItems == true) ...[
-                        Text(
-                          AppLocalizations.of(context)!.availableProducts,
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.4,
-                              ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
-                          ),
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(
-                              // Show at most 3 items' worth of height; allow scrolling when more
-                              maxHeight: 3 * 88.0,
-                            ),
-                            child: ListView.builder(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              shrinkWrap: true,
-                              physics: widget.order.items.length > 3
-                                  ? const AlwaysScrollableScrollPhysics()
-                                  : const NeverScrollableScrollPhysics(),
-                              itemCount: widget.order.items.length,
-                              itemBuilder: (context, index) {
-                                final item = widget.order.items[index];
-                                final isSelected = _selectedBackorderedItemIds
-                                    .contains(item.id);
-                                final controller =
-                                    _backorderedQuantityControllers.putIfAbsent(
-                                      item.id,
-                                      () => TextEditingController(
-                                        text: (item.quantity.toInt() - 1)
-                                            .clamp(0, item.quantity.toInt())
-                                            .toString(),
-                                      ),
-                                    );
-                                return Column(
-                                  children: [
-                                    CheckboxListTile(
-                                      title: Text(
-                                        item.productName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        '${AppLocalizations.of(context)!.needed}: ${item.quantity.toInt()} ${AppLocalizations.of(context)!.units}',
-                                      ),
-                                      value: isSelected,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          if (value == true) {
-                                            _selectedBackorderedItemIds.add(
-                                              item.id,
-                                            );
-                                          } else {
-                                            _selectedBackorderedItemIds.remove(
-                                              item.id,
-                                            );
-                                          }
-                                        });
-                                      },
-                                      controlAffinity:
-                                          ListTileControlAffinity.leading,
-                                    ),
-                                    if (isSelected) ...[
-                                      Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                          20,
-                                          0,
-                                          20,
-                                          16,
-                                        ),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFFF3F4F6),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceEvenly,
-                                            children: [
-                                              IconButton(
-                                                padding: EdgeInsets.zero,
-                                                constraints:
-                                                    const BoxConstraints(),
-                                                icon: const Icon(
-                                                  Icons.remove,
-                                                  size: 20,
-                                                ),
-                                                onPressed: () {
-                                                  int current =
-                                                      int.tryParse(
-                                                        controller.text,
-                                                      ) ??
-                                                      0;
-                                                  int next = current - 1;
-                                                  final min = 0;
-                                                  final max = item.quantity
-                                                      .toInt();
-                                                  if (next < min) next = min;
-                                                  if (next > max) next = max;
-                                                  controller.text = next
-                                                      .toString();
-                                                  setState(() {});
-                                                },
-                                              ),
-                                              const SizedBox(width: 8),
-                                              SizedBox(
-                                                width: 56,
-                                                height: 36,
-                                                child: TextField(
-                                                  controller: controller,
-                                                  textAlign: TextAlign.center,
-                                                  keyboardType:
-                                                      TextInputType.number,
-                                                  inputFormatters: [
-                                                    FilteringTextInputFormatter
-                                                        .digitsOnly,
-                                                  ],
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                  decoration:
-                                                      const InputDecoration(
-                                                        isDense: true,
-                                                        contentPadding:
-                                                            EdgeInsets.symmetric(
-                                                              vertical: 10,
-                                                              horizontal: 4,
-                                                            ),
-                                                        enabledBorder:
-                                                            InputBorder.none,
-                                                        focusedBorder:
-                                                            InputBorder.none,
-                                                        focusColor:
-                                                            Colors.transparent,
-                                                        fillColor:
-                                                            Colors.transparent,
-                                                        border:
-                                                            InputBorder.none,
-                                                      ),
-                                                  onChanged: (value) {
-                                                    final parsed =
-                                                        int.tryParse(value) ??
-                                                        0;
-                                                    final min = 0;
-                                                    final max = item.quantity
-                                                        .toInt();
-                                                    final next = parsed.clamp(
-                                                      min,
-                                                      max,
-                                                    );
-                                                    if (next.toString() !=
-                                                        value) {
-                                                      controller.text = next
-                                                          .toString();
-                                                      controller.selection =
-                                                          TextSelection.fromPosition(
-                                                            TextPosition(
-                                                              offset: controller
-                                                                  .text
-                                                                  .length,
-                                                            ),
-                                                          );
-                                                    }
-                                                    setState(() {});
-                                                  },
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              IconButton(
-                                                padding: EdgeInsets.zero,
-                                                constraints:
-                                                    const BoxConstraints(),
-                                                icon: const Icon(
-                                                  Icons.add,
-                                                  size: 20,
-                                                ),
-                                                onPressed: () {
-                                                  int current =
-                                                      int.tryParse(
-                                                        controller.text,
-                                                      ) ??
-                                                      1;
-                                                  int next = current + 1;
-                                                  final min = 1;
-                                                  final max = item.quantity
-                                                      .toInt();
-                                                  if (next < min) next = min;
-                                                  if (next > max) next = max;
-                                                  controller.text = next
-                                                      .toString();
-                                                  setState(() {});
-                                                },
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                        // const SizedBox(height: 16),
-                        // Container(
-                        //   padding: const EdgeInsets.symmetric(
-                        //     horizontal: 16,
-                        //     vertical: 14,
-                        //   ),
-                        //   decoration: BoxDecoration(
-                        //     color: const Color(0xFFF7F9FF),
-                        //     borderRadius: BorderRadius.circular(16),
-                        //   ),
-                        //   child: Row(
-                        //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        //     children: [
-                        //       Column(
-                        //         crossAxisAlignment: CrossAxisAlignment.start,
-                        //         children: [
-                        //           Text(
-                        //             'Tanlangan mahsulotlar',
-                        //             style: Theme.of(context).textTheme.bodySmall
-                        //                 ?.copyWith(
-                        //                   color: AppTheme.onSurfaceMuted,
-                        //                 ),
-                        //           ),
-                        //           const SizedBox(height: 4),
-                        //           Text(
-                        //             '${_selectedBackorderedItemIds.length} tur',
-                        //             style: const TextStyle(
-                        //               fontWeight: FontWeight.w700,
-                        //               fontSize: 14,
-                        //             ),
-                        //           ),
-                        //         ],
-                        //       ),
-                        //     ],
-                        //   ),
-                        // ),
-                        const SizedBox(height: 16),
-                      ], // Submit
+                      // Show missing products info for PARTIAL transition (read-only)
+                      // Show missing products info for PARTIAL transition (read-only)
+
+                      // if (_selected?.requiresBackorderedItems == true &&
+                      //     !widget.order.items.any((i) => i.status == ItemStatus.BACKORDERED)) ...[
+                      //   Text(
+                      //     'Yetishmayotgan mahsulotlar',
+                      //     style: Theme.of(context).textTheme.labelSmall
+                      //         ?.copyWith(
+                      //           fontWeight: FontWeight.w700,
+                      //           letterSpacing: 0.4,
+                      //         ),
+                      //   ),
+                      //   const SizedBox(height: 12),
+                      //   Container(
+                      //     decoration: BoxDecoration(
+                      //       color: const Color(0xFFFFF5F5),
+                      //       borderRadius: BorderRadius.circular(16),
+                      //       border: Border.all(color: const Color(0xFFFECACA)),
+                      //     ),
+                      //     child: ConstrainedBox(
+                      //       constraints: const BoxConstraints(
+                      //         maxHeight: 3 * 72.0,
+                      //       ),
+                      //       child: ListView.builder(
+                      //         padding: const EdgeInsets.symmetric(vertical: 8),
+                      //         shrinkWrap: true,
+                      //         physics: widget.order.items.length > 3
+                      //             ? const AlwaysScrollableScrollPhysics()
+                      //             : const NeverScrollableScrollPhysics(),
+                      //         itemCount: widget.order.items.length,
+                      //         itemBuilder: (context, index) {
+                      //           final item = widget.order.items[index];
+                      //           final collected = item.quantity - (item.backorderedQuantity ?? 0);
+                      //           final missing = item.quantity - collected;
+                      //
+                      //           // Only show items that are missing
+                      //           if (missing <= 0) return const SizedBox.shrink();
+                      //
+                      //           return Padding(
+                      //             padding: const EdgeInsets.symmetric(
+                      //               horizontal: 16,
+                      //               vertical: 4,
+                      //             ),
+                      //             child: Row(
+                      //               children: [
+                      //                 const Icon(
+                      //                   Icons.info_outline,
+                      //                   color: Color(0xFFEF4444),
+                      //                   size: 20,
+                      //                 ),
+                      //                 const SizedBox(width: 12),
+                      //                 Expanded(
+                      //                   child: Column(
+                      //                     crossAxisAlignment: CrossAxisAlignment.start,
+                      //                     children: [
+                      //                       Text(
+                      //                         item.productName,
+                      //                         style: const TextStyle(
+                      //                           fontWeight: FontWeight.w600,
+                      //                           fontSize: 14,
+                      //                         ),
+                      //                       ),
+                      //                       Text(
+                      //                         'Yetishmayotgan: $missing ${AppLocalizations.of(context)!.units}',
+                      //                         style: const TextStyle(
+                      //                           fontSize: 12,
+                      //                           color: Color(0xFFEF4444),
+                      //                           fontWeight: FontWeight.w500,
+                      //                         ),
+                      //                       ),
+                      //                     ],
+                      //                   ),
+                      //                 ),
+                      //               ],
+                      //             ),
+                      //           );
+                      //         },
+                      //       ),
+                      //     ),
+                      //   ),
+                      //   // const SizedBox(height: 16),
+                      //   // Container(
+                      //   //   padding: const EdgeInsets.symmetric(
+                      //   //     horizontal: 16,
+                      //   //     vertical: 14,
+                      //   //   ),
+                      //   //   decoration: BoxDecoration(
+                      //   //     color: const Color(0xFFF7F9FF),
+                      //   //     borderRadius: BorderRadius.circular(16),
+                      //   //   ),
+                      //   //   child: Row(
+                      //   //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      //   //     children: [
+                      //   //       Column(
+                      //   //         crossAxisAlignment: CrossAxisAlignment.start,
+                      //   //         children: [
+                      //   //           Text(
+                      //   //             'Tanlangan mahsulotlar',
+                      //   //             style: Theme.of(context).textTheme.bodySmall
+                      //   //                 ?.copyWith(
+                      //   //                   color: AppTheme.onSurfaceMuted,
+                      //   //                 ),
+                      //   //           ),
+                      //   //           const SizedBox(height: 4),
+                      //   //           Text(
+                      //   //             '${_selectedBackorderedItemIds.length} tur',
+                      //   //             style: const TextStyle(
+                      //   //               fontWeight: FontWeight.w700,
+                      //   //               fontSize: 14,
+                      //   //             ),
+                      //   //           ),
+                      //   //         ],
+                      //   //       ),
+                      //   //     ],
+                      //   //   ),
+                      //   // ),
+                      //   const SizedBox(height: 16),
+                      // ], // Submit
                       SizedBox(
                         height: 52,
                         child: ElevatedButton(
@@ -983,10 +795,16 @@ class _TransitionSheetState extends State<TransitionSheet> {
                                     const SizedBox(width: 8),
                                     Text(
                                       _selected != null
-                                          ? AppLocalizations.of(context)!.moveToStatus(
-                                              _selected!.to.localizedName(context),
+                                          ? AppLocalizations.of(
+                                              context,
+                                            )!.moveToStatus(
+                                              _selected!.to.localizedName(
+                                                context,
+                                              ),
                                             )
-                                          : AppLocalizations.of(context)!.selectStatus,
+                                          : AppLocalizations.of(
+                                              context,
+                                            )!.selectStatus,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -1017,6 +835,7 @@ class _TransitionSheetState extends State<TransitionSheet> {
                     //   order: widget.order,
                     //   currentUser: widget.currentUser,
                     // ),
+                    SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -1152,9 +971,8 @@ class _TransitionOption extends StatelessWidget {
       parts.add(l10n.missingQuantityRequired);
     }
     if (definition.requiresPaid) parts.add(l10n.orderMustBePaid);
-    if (definition.requiresArrivedItemIds) {
-      parts.add(l10n.allBackorderedMustArrive);
-    }
+    // Note: requiresArrivedItemIds is no longer used for PARTIAL → READY
+    // since items are automatically marked as available during transition
     return parts.join(' · ');
   }
 }

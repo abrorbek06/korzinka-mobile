@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:korzinkab_mobile/l10n/app_localizations.dart';
 import 'package:korzinkab_mobile/providers/notifications_provider.dart';
 import 'package:korzinkab_mobile/services/notifications_api.dart';
 import 'package:korzinkab_mobile/theme/app_theme.dart';
@@ -103,7 +104,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               Text(
-                                n.title,
+                                AppLocalizations.of(context)!.assigedNewOrder,
                                 style: TextStyle(
                                   color: AppTheme.onSurface,
                                   fontWeight: FontWeight.bold,
@@ -129,7 +130,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                   );
                 },
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemCount: _items.length,
               ),
       ),

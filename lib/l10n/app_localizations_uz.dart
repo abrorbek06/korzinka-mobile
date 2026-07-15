@@ -259,6 +259,65 @@ class AppLocalizationsUz extends AppLocalizations {
   String get orderMustBePaid => 'Buyurtma TO\'LANGAN bo\'lishi kerak';
 
   @override
+  String get sessionExpired =>
+      'Sessiyangiz tugadi. Iltimos, qayta kirib keting.';
+
+  @override
+  String get internetUnavailable =>
+      'Internet aloqasi mavjud emas. Iltimos, tarmoqni tekshirib qayta urinib ko\'ring.';
+
+  @override
+  String get requestTimeout =>
+      'Serverga ulanish vaqti tugadi. Iltimos, birozdan keyin qayta urinib ko\'ring.';
+
+  @override
+  String get notFound => 'Ma\'lumot topilmadi.';
+
+  @override
+  String get quantityLockedWhilePaid =>
+      'Buyurtma to\'langanligi sababli mahsulot sonini o\'zgartirib bo\'lmaydi. Avval to\'lovni bekor qiling.';
+
+  @override
+  String get cashCardCreatePaidRejected =>
+      'Naqd yoki kartali buyurtma yaratishda oldindan to\'lov belgilanmaydi. Buyurtma tayyor holatga kelgach, to\'lovni belgilang.';
+
+  @override
+  String get markPaidRequired =>
+      'Buyurtma yakunlanishidan oldin to\'lov tasdiqlanishi kerak.';
+
+  @override
+  String get readyReverseBlockedPaid =>
+      'Bu buyurtma allaqachon to\'langanligi sababli qaytib kelish ishlovi bekor qilindi. Avval to\'lovni bekor qiling.';
+
+  @override
+  String get transitionNotAllowed =>
+      'Bu holat o\'zgartirish mumkin emas. Iltimos, boshqa bosqichga o\'ting.';
+
+  @override
+  String get pickerRequired => 'Tanlov uchun picker tanlang.';
+
+  @override
+  String get backorderRequired =>
+      'Qoldiq mahsulotlarni oldin to\'g\'ri belgilang.';
+
+  @override
+  String get contractRequired =>
+      'Buyurtma uchun kamida bitta faol shartnoma bo\'lishi kerak.';
+
+  @override
+  String get alreadyExists => 'Bu ma\'lumot allaqachon mavjud.';
+
+  @override
+  String get forbidden => 'Ushbu amal uchun sizga ruxsat yo\'q.';
+
+  @override
+  String get invalidData => 'Ma\'lumot formati noto\'g\'ri.';
+
+  @override
+  String get unknownError =>
+      'Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.';
+
+  @override
   String get allBackorderedMustArrive =>
       'Barcha backordered mahsulotlar yetishi kerak';
 
@@ -270,4 +329,15 @@ class AppLocalizationsUz extends AppLocalizations {
 
   @override
   String get statusOutForDelivery => 'Yo\'lda';
+
+  @override
+  String get picker => 'Yig\'uvchi';
+
+  @override
+  String get assigedNewOrder => 'Sizga biriktirilgan yangi buyurtma mavjud';
+
+  @override
+  String performPartialError(Object role, Object status) {
+    return 'Rol $role qisman → $status ni bajara olmaydi';
+  }
 }

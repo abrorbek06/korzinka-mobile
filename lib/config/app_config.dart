@@ -24,26 +24,26 @@ class AppConfig {
   }
 
   // https://korzinka-backend.mock-ielts.uz
-  // https://korzinka-backend.mock-ielts.uz
+  // https://kb-staging.qisqa.link
 
   // Returns a runtime base URL that works on mobile emulators/devices.
   // - Web and macOS use localhost
   // - Android emulator should use 10.0.2.2 to reach host machine
   // - Fallback to localhost otherwise
   static String get baseUrl {
-    if (kIsWeb) return 'https://korzinka-backend.mock-ielts.uz';
+    if (kIsWeb) return 'https://kb-staging.qisqa.link';
     try {
-      if (Platform.isAndroid) return 'https://korzinka-backend.mock-ielts.uz';
+      if (Platform.isAndroid) return 'https://kb-staging.qisqa.link';
     } catch (_) {}
-    return 'https://korzinka-backend.mock-ielts.uz';
+    return 'https://kb-staging.qisqa.link';
   }
 
   static String get socketUrl {
-    if (kIsWeb) return 'https://korzinka-backend.mock-ielts.uz';
+    if (kIsWeb) return 'https://kb-staging.qisqa.link';
     try {
-      if (Platform.isAndroid) return 'https://korzinka-backend.mock-ielts.uz';
+      if (Platform.isAndroid) return 'https://kb-staging.qisqa.link';
     } catch (_) {}
-    return 'https://korzinka-backend.mock-ielts.uz';
+    return 'https://kb-staging.qisqa.link';
   }
 
   static const String socketNamespace = '/socket';

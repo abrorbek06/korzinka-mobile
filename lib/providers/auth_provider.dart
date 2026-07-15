@@ -39,18 +39,23 @@ class AuthProvider extends ChangeNotifier {
         return;
       }
 
-      // Try to verify token is still valid, but don't fail on network errors
+      // Restore session with stored data (offline-first approach)
+      _token = savedToken;
+      _user = AuthenticatedUser.fromJsonString(savedUser);
+      _setState(AuthState.authenticated);
+
+      // Try to verify token is still valid in the background
+      // Don't fail the session restore if this fails (network error, server down, etc.)
       try {
         final user = await _authService.getMe(savedToken);
-        _token = savedToken;
         _user = user;
+        // Update stored user data with fresh data
+        await prefs.setString(AppConfig.userKey, user.toJsonString());
       } catch (_) {
-        // If verification fails (network error, server down, etc.),
-        // still restore session with stored data. Token will be validated on next API call.
-        _token = savedToken;
-        _user = AuthenticatedUser.fromJsonString(savedUser);
+        // Token verification failed, but session is still valid for offline use
+        // Token will be validated on next API call
+        AppConfig.log('Token verification failed, using offline session');
       }
-      _setState(AuthState.authenticated);
     } catch (_) {
       await _clearSession();
       _setState(AuthState.unauthenticated);

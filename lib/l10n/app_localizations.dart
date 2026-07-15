@@ -578,6 +578,102 @@ abstract class AppLocalizations {
   /// **'Buyurtma TO\'LANGAN bo\'lishi kerak'**
   String get orderMustBePaid;
 
+  /// No description provided for @sessionExpired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sessiyangiz tugadi. Iltimos, qayta kirib keting.'**
+  String get sessionExpired;
+
+  /// No description provided for @internetUnavailable.
+  ///
+  /// In uz, this message translates to:
+  /// **'Internet aloqasi mavjud emas. Iltimos, tarmoqni tekshirib qayta urinib ko\'ring.'**
+  String get internetUnavailable;
+
+  /// No description provided for @requestTimeout.
+  ///
+  /// In uz, this message translates to:
+  /// **'Serverga ulanish vaqti tugadi. Iltimos, birozdan keyin qayta urinib ko\'ring.'**
+  String get requestTimeout;
+
+  /// No description provided for @notFound.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ma\'lumot topilmadi.'**
+  String get notFound;
+
+  /// No description provided for @quantityLockedWhilePaid.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buyurtma to\'langanligi sababli mahsulot sonini o\'zgartirib bo\'lmaydi. Avval to\'lovni bekor qiling.'**
+  String get quantityLockedWhilePaid;
+
+  /// No description provided for @cashCardCreatePaidRejected.
+  ///
+  /// In uz, this message translates to:
+  /// **'Naqd yoki kartali buyurtma yaratishda oldindan to\'lov belgilanmaydi. Buyurtma tayyor holatga kelgach, to\'lovni belgilang.'**
+  String get cashCardCreatePaidRejected;
+
+  /// No description provided for @markPaidRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buyurtma yakunlanishidan oldin to\'lov tasdiqlanishi kerak.'**
+  String get markPaidRequired;
+
+  /// No description provided for @readyReverseBlockedPaid.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu buyurtma allaqachon to\'langanligi sababli qaytib kelish ishlovi bekor qilindi. Avval to\'lovni bekor qiling.'**
+  String get readyReverseBlockedPaid;
+
+  /// No description provided for @transitionNotAllowed.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu holat o\'zgartirish mumkin emas. Iltimos, boshqa bosqichga o\'ting.'**
+  String get transitionNotAllowed;
+
+  /// No description provided for @pickerRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Tanlov uchun picker tanlang.'**
+  String get pickerRequired;
+
+  /// No description provided for @backorderRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Qoldiq mahsulotlarni oldin to\'g\'ri belgilang.'**
+  String get backorderRequired;
+
+  /// No description provided for @contractRequired.
+  ///
+  /// In uz, this message translates to:
+  /// **'Buyurtma uchun kamida bitta faol shartnoma bo\'lishi kerak.'**
+  String get contractRequired;
+
+  /// No description provided for @alreadyExists.
+  ///
+  /// In uz, this message translates to:
+  /// **'Bu ma\'lumot allaqachon mavjud.'**
+  String get alreadyExists;
+
+  /// No description provided for @forbidden.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ushbu amal uchun sizga ruxsat yo\'q.'**
+  String get forbidden;
+
+  /// No description provided for @invalidData.
+  ///
+  /// In uz, this message translates to:
+  /// **'Ma\'lumot formati noto\'g\'ri.'**
+  String get invalidData;
+
+  /// No description provided for @unknownError.
+  ///
+  /// In uz, this message translates to:
+  /// **'Xatolik yuz berdi. Iltimos, qayta urinib ko\'ring.'**
+  String get unknownError;
+
   /// No description provided for @allBackorderedMustArrive.
   ///
   /// In uz, this message translates to:
@@ -601,6 +697,24 @@ abstract class AppLocalizations {
   /// In uz, this message translates to:
   /// **'Yo\'lda'**
   String get statusOutForDelivery;
+
+  /// No description provided for @picker.
+  ///
+  /// In uz, this message translates to:
+  /// **'Yig\'uvchi'**
+  String get picker;
+
+  /// No description provided for @assigedNewOrder.
+  ///
+  /// In uz, this message translates to:
+  /// **'Sizga biriktirilgan yangi buyurtma mavjud'**
+  String get assigedNewOrder;
+
+  /// No description provided for @performPartialError.
+  ///
+  /// In uz, this message translates to:
+  /// **'Rol {role} qisman → {status} ni bajara olmaydi'**
+  String performPartialError(Object role, Object status);
 }
 
 class _AppLocalizationsDelegate

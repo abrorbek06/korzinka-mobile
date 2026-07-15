@@ -539,12 +539,12 @@ class OrderListItem {
 
 /// Full order detail
 class OrderDetail extends OrderListItem {
-  final List<OrderItem> items;
+  List<OrderItem> items; // Made mutable for in-place updates
   final Customer? customer;
   final Picker? picker;
-  final List<Cart> carts;
+  List<Cart> carts; // Made mutable for in-place updates
 
-  const OrderDetail({
+  OrderDetail({
     required super.id,
     super.code,
     required super.status,
@@ -572,6 +572,66 @@ class OrderDetail extends OrderListItem {
     this.picker,
     this.carts = const [],
   });
+
+  OrderDetail copyWith({
+    String? id,
+    String? code,
+    OrderStatus? status,
+    PaymentStatus? paymentStatus,
+    PaymentType? paymentType,
+    String? customerId,
+    String? customerName,
+    String? branchId,
+    String? branchName,
+    String? salesManagerId,
+    String? salesManagerName,
+    String? pickerId,
+    String? pickerName,
+    DateTime? createdAt,
+    DateTime? endDate,
+    int? backorderedItemsCount,
+    int? totalItems,
+    String? trolleyId,
+    String? notes,
+    DateTime? completedAt,
+    DeliveryType? deliveryType,
+    bool? isPostPayment,
+    List<OrderItem>? items,
+    Customer? customer,
+    Picker? picker,
+    List<Cart>? carts,
+    String? totalAmount,
+    DateTime? updatedAt,
+  }) {
+    return OrderDetail(
+      id: id ?? this.id,
+      code: code ?? this.code,
+      status: status ?? this.status,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      paymentType: paymentType ?? this.paymentType,
+      customerId: customerId ?? this.customerId,
+      customerName: customerName ?? this.customerName,
+      branchId: branchId ?? this.branchId,
+      branchName: branchName ?? this.branchName,
+      salesManagerId: salesManagerId ?? this.salesManagerId,
+      salesManagerName: salesManagerName ?? this.salesManagerName,
+      pickerId: pickerId ?? this.pickerId,
+      pickerName: pickerName ?? this.pickerName,
+      createdAt: createdAt ?? this.createdAt,
+      endDate: endDate ?? this.endDate,
+      backorderedItemsCount: backorderedItemsCount ?? this.backorderedItemsCount,
+      totalItems: totalItems ?? this.totalItems,
+      trolleyId: trolleyId ?? this.trolleyId,
+      notes: notes ?? this.notes,
+      completedAt: completedAt ?? this.completedAt,
+      deliveryType: deliveryType ?? this.deliveryType,
+      isPostPayment: isPostPayment ?? this.isPostPayment,
+      items: items ?? this.items,
+      customer: customer ?? this.customer,
+      picker: picker ?? this.picker,
+      carts: carts ?? this.carts,
+    );
+  }
 
   factory OrderDetail.fromJson(Map<String, dynamic> json) {
     final customer = json['customer'] as Map<String, dynamic>?;
@@ -710,7 +770,6 @@ const List<TransitionDefinition> kTransitionRules = [
     from: OrderStatus.PARTIAL,
     to: OrderStatus.READY,
     roles: ['ADMIN', 'STORE_MANAGER', 'SALES_MANAGER', 'PICKER'],
-    requiresArrivedItemIds: true,
   ),
   TransitionDefinition(
     from: OrderStatus.PARTIAL,

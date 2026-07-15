@@ -129,13 +129,8 @@ class OrdersOrderCard extends StatelessWidget {
             //   ),
             const SizedBox(height: 10),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(
-                  Icons.shopping_cart_outlined,
-                  size: 14,
-                  color: AppTheme.onSurfaceMuted,
-                ),
-                const SizedBox(width: 6),
                 Text(
                   order.totalItems > 0
                       ? AppLocalizations.of(context)!.productCount(order.totalItems)
@@ -147,22 +142,16 @@ class OrdersOrderCard extends StatelessWidget {
                     color: AppTheme.onSurfaceMuted,
                   ),
                 ),
-                // const Spacer(),
-                // Container(
-                //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                //   decoration: BoxDecoration(
-                //     color: order.status.lightColor,
-                //     borderRadius: BorderRadius.circular(10),
-                //   ),
-                //   child: Text(
-                //     order.status.displayName,
-                //     style: TextStyle(
-                //       fontSize: 11,
-                //       fontWeight: FontWeight.w700,
-                //       color: order.status.color,
-                //     ),
-                //   ),
-                // ),
+                Text(
+                  order.pickerName ?? '—',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 10),

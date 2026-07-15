@@ -16,7 +16,6 @@ class OrdersService {
     'Authorization': 'Bearer $token',
   };
 
-
   String _mapPaymentType(PaymentType t) {
     switch (t) {
       case PaymentType.CASH:
@@ -208,7 +207,6 @@ class OrdersService {
     String? pickerId,
     String? trolleyId,
     List<Map<String, dynamic>>? backorderedItems,
-    List<String>? arrivedItemIds,
     String? notes,
   }) async {
     final body = <String, dynamic>{
@@ -216,7 +214,6 @@ class OrdersService {
       'pickerId': ?pickerId,
       'trolleyId': ?trolleyId,
       'backorderedItems': ?backorderedItems,
-      'arrivedItemIds': ?arrivedItemIds,
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
 
@@ -279,9 +276,7 @@ class OrdersService {
     DateTime? endDate,
   }) async {
     final body = <String, dynamic>{
-      if (clearTrolley)
-        'trolleyId': null
-      else 'trolleyId': ?trolleyId,
+      if (clearTrolley) 'trolleyId': null else 'trolleyId': ?trolleyId,
       if (endDate != null) 'endDate': endDate.toIso8601String(),
     };
     late http.Response response;
@@ -300,12 +295,13 @@ class OrdersService {
     return _parseOrderDetailResponse(response.body, response.statusCode);
   }
 
-  /// Attach a cart to the order (logistics attach, order must be IN_COLLECTION)
+  /// Attach carts to the order (logistics attach, order must be IN_COLLECTION)
+  /// Supports multiple cart IDs in a single request
   Future<OrderDetail> attachCart({
     required String orderId,
-    required String cartId,
+    required List<String> cartIds,
   }) async {
-    final body = jsonEncode({'cartId': cartId});
+    final body = jsonEncode({'cartIds': cartIds});
     late http.Response response;
     try {
       final uri = Uri.parse('$_baseUrl/orders/$orderId/carts');
@@ -319,7 +315,8 @@ class OrdersService {
     return _parseOrderDetailResponse(response.body, response.statusCode);
   }
 
-  /// Detach a cart from the order
+  /// Detach carts from the order (logistics detach, order must be IN_COLLECTION)
+  /// Supports multiple cart IDs in a single request
   Future<OrderDetail> detachCart({
     required String orderId,
     required String cartId,
@@ -379,7 +376,7 @@ class OrdersService {
       'quantity': ?quantity,
       'status': ?status,
       if (backorderedQuantity != null)
-        'backorderedQuantity': backorderedQuantity.toInt().toString(),
+        'backorderedQuantity': backorderedQuantity.clamp(0, 999999).toInt(),
     };
     late http.Response response;
     try {

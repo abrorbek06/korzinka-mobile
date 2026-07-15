@@ -271,6 +271,63 @@ class AppLocalizationsRu extends AppLocalizations {
   String get orderMustBePaid => 'Заказ должен быть ОПЛАЧЕН';
 
   @override
+  String get sessionExpired => 'Сессия истекла. Пожалуйста, войдите снова.';
+
+  @override
+  String get internetUnavailable =>
+      'Нет подключения к интернету. Проверьте сеть и повторите попытку.';
+
+  @override
+  String get requestTimeout =>
+      'Превышено время ожидания сервера. Пожалуйста, повторите попытку позже.';
+
+  @override
+  String get notFound => 'Данные не найдены.';
+
+  @override
+  String get quantityLockedWhilePaid =>
+      'Из-за того, что заказ уже оплачен, количество товаров изменить нельзя. Сначала отмените оплату.';
+
+  @override
+  String get cashCardCreatePaidRejected =>
+      'Для заказов за наличные или картой предварительная отметка оплаты при создании не допускается. Установите оплату после того, как заказ станет готовым.';
+
+  @override
+  String get markPaidRequired =>
+      'Перед завершением заказа необходимо подтвердить оплату.';
+
+  @override
+  String get readyReverseBlockedPaid =>
+      'Этот заказ уже оплачен, поэтому возврат в предыдущий статус запрещён. Сначала отмените оплату.';
+
+  @override
+  String get transitionNotAllowed =>
+      'Этот статус нельзя изменить. Пожалуйста, перейдите в другой этап.';
+
+  @override
+  String get pickerRequired => 'Нужно выбрать сборщика.';
+
+  @override
+  String get backorderRequired =>
+      'Сначала нужно корректно объявить товары с резервом.';
+
+  @override
+  String get contractRequired =>
+      'Для заказа должен быть хотя бы один активный контракт.';
+
+  @override
+  String get alreadyExists => 'Эта информация уже существует.';
+
+  @override
+  String get forbidden => 'У вас нет доступа к этому действию.';
+
+  @override
+  String get invalidData => 'Формат данных неверен.';
+
+  @override
+  String get unknownError => 'Произошла ошибка. Пожалуйста, повторите попытку.';
+
+  @override
   String get allBackorderedMustArrive =>
       'Все товары в дозаказе должны поступить';
 
@@ -282,4 +339,15 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get statusOutForDelivery => 'В пути';
+
+  @override
+  String get picker => 'Cборщик';
+
+  @override
+  String get assigedNewOrder => 'Новый заказ назначен вам';
+
+  @override
+  String performPartialError(Object role, Object status) {
+    return 'Роль $role не может выполнить частичное выполнение → $status';
+  }
 }

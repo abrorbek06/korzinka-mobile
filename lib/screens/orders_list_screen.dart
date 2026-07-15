@@ -126,9 +126,12 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
     PaymentStatus? localSelectedPaymentStatus = _selectedPaymentStatus;
     PaymentType? localSelectedPaymentType = _selectedPaymentType;
 
+    final maxSheetHeight = MediaQuery.of(context).size.height * 0.92;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      constraints: BoxConstraints(maxHeight: maxSheetHeight),
       backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -143,153 +146,163 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                 right: 16,
                 top: 24,
               ),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          AppLocalizations.of(context)!.filters,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxSheetHeight),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            AppLocalizations.of(context)!.filters,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        TextButton(
+                          TextButton(
+                            onPressed: () {
+                              setModalState(() {
+                                localSelectedStatuses.clear();
+                                localSelectedPaymentStatus = null;
+                                localSelectedPaymentType = null;
+                              });
+                            },
+                            child: Text(
+                              AppLocalizations.of(context)!.clear,
+                              style: const TextStyle(color: AppTheme.primary),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppLocalizations.of(context)!.orderStatus,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: OrderStatus.values.map((s) {
+                          final selected = localSelectedStatuses.contains(s);
+                          return ChoiceChip(
+                            label: Text(s.localizedName(context)),
+                            selected: selected,
+                            backgroundColor: s.color.withOpacity(0.3),
+                            selectedColor: s.color,
+                            labelStyle: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : AppTheme.onSurface,
+                            ),
+                            onSelected: (val) {
+                              setModalState(() {
+                                if (val) {
+                                  localSelectedStatuses.add(s);
+                                } else {
+                                  localSelectedStatuses.remove(s);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppLocalizations.of(context)!.paymentStatus,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: PaymentStatus.values.map((s) {
+                          final selected = localSelectedPaymentStatus == s;
+                          return ChoiceChip(
+                            label: Text(s.localizedName(context)),
+                            selected: selected,
+                            backgroundColor: s.color.withOpacity(0.3),
+                            selectedColor: s.color,
+                            labelStyle: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : AppTheme.onSurface,
+                            ),
+                            onSelected: (val) {
+                              setModalState(() {
+                                localSelectedPaymentStatus = val ? s : null;
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        AppLocalizations.of(context)!.paymentType,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: PaymentType.values.map((t) {
+                          final selected = localSelectedPaymentType == t;
+                          return ChoiceChip(
+                            label: Text(t.localizedName(context)),
+                            selected: selected,
+                            backgroundColor: const Color.fromARGB(
+                              255,
+                              173,
+                              170,
+                              194,
+                            ).withOpacity(0.3),
+                            selectedColor: AppTheme.primary,
+                            labelStyle: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : AppTheme.onSurface,
+                            ),
+                            onSelected: (val) {
+                              setModalState(() {
+                                localSelectedPaymentType = val ? t : null;
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
                           onPressed: () {
-                            setModalState(() {
-                              localSelectedStatuses.clear();
-                              localSelectedPaymentStatus = null;
-                              localSelectedPaymentType = null;
+                            // Commit staged selections to parent state
+                            setState(() {
+                              _selectedStatuses = List<OrderStatus>.from(
+                                localSelectedStatuses,
+                              );
+                              _selectedPaymentStatus =
+                                  localSelectedPaymentStatus;
+                              _selectedPaymentType = localSelectedPaymentType;
                             });
+                            Navigator.pop(context);
+                            _fetchOrders(refresh: true);
                           },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
                           child: Text(
-                            AppLocalizations.of(context)!.clear,
-                            style: const TextStyle(color: AppTheme.primary),
+                            AppLocalizations.of(context)!.applyFilter,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      AppLocalizations.of(context)!.orderStatus,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: OrderStatus.values.map((s) {
-                        final selected = localSelectedStatuses.contains(s);
-                        return ChoiceChip(
-                          label: Text(s.localizedName(context)),
-                          selected: selected,
-                          backgroundColor: s.color.withOpacity(0.3),
-                          selectedColor: s.color,
-                          labelStyle: TextStyle(
-                            color: selected ? Colors.white : AppTheme.onSurface,
-                          ),
-                          onSelected: (val) {
-                            setModalState(() {
-                              if (val) {
-                                localSelectedStatuses.add(s);
-                              } else {
-                                localSelectedStatuses.remove(s);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      AppLocalizations.of(context)!.paymentStatus,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: PaymentStatus.values.map((s) {
-                        final selected = localSelectedPaymentStatus == s;
-                        return ChoiceChip(
-                          label: Text(s.localizedName(context)),
-                          selected: selected,
-                          backgroundColor: s.color.withOpacity(0.3),
-                          selectedColor: s.color,
-                          labelStyle: TextStyle(
-                            color: selected ? Colors.white : AppTheme.onSurface,
-                          ),
-                          onSelected: (val) {
-                            setModalState(() {
-                              localSelectedPaymentStatus = val ? s : null;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      AppLocalizations.of(context)!.paymentType,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: PaymentType.values.map((t) {
-                        final selected = localSelectedPaymentType == t;
-                        return ChoiceChip(
-                          label: Text(t.localizedName(context)),
-                          selected: selected,
-                          backgroundColor: const Color.fromARGB(
-                            255,
-                            173,
-                            170,
-                            194,
-                          ).withOpacity(0.3),
-                          selectedColor: AppTheme.primary,
-                          labelStyle: TextStyle(
-                            color: selected ? Colors.white : AppTheme.onSurface,
-                          ),
-                          onSelected: (val) {
-                            setModalState(() {
-                              localSelectedPaymentType = val ? t : null;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // Commit staged selections to parent state
-                          setState(() {
-                            _selectedStatuses = List<OrderStatus>.from(
-                              localSelectedStatuses,
-                            );
-                            _selectedPaymentStatus = localSelectedPaymentStatus;
-                            _selectedPaymentType = localSelectedPaymentType;
-                          });
-                          Navigator.pop(context);
-                          _fetchOrders(refresh: true);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: Text(
-                          AppLocalizations.of(context)!.applyFilter,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -377,15 +390,15 @@ class _OrdersListScreenState extends State<OrdersListScreen> {
                         SizedBox(height: 120),
                         Center(
                           child: Text(
-                        AppLocalizations.of(context)!.noOrdersFound,
-                        style: const TextStyle(
-                          color: AppTheme.onSurfaceMuted,
-                          fontSize: 15,
+                            AppLocalizations.of(context)!.noOrdersFound,
+                            style: const TextStyle(
+                              color: AppTheme.onSurfaceMuted,
+                              fontSize: 15,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ))
+                      ],
+                    ))
             : ListView.separated(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
